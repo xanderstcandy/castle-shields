@@ -1,0 +1,12 @@
+# Render Blueprint: https://render.com/docs/infrastructure-as-code
+# After pushing this repo to GitHub, use Dashboard → New → Blueprint → select repo.
+
+services:
+  - type: web
+    name: castle-sheilds
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /

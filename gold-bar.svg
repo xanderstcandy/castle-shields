@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 84" aria-hidden="true">
+  <defs>
+    <linearGradient id="goldTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff7cc"/>
+      <stop offset="45%" stop-color="#f3d36b"/>
+      <stop offset="100%" stop-color="#d4af37"/>
+    </linearGradient>
+    <linearGradient id="goldFront" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c8942a"/>
+      <stop offset="100%" stop-color="#e0bb4a"/>
+    </linearGradient>
+    <linearGradient id="goldSide" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#b8860b"/>
+      <stop offset="100%" stop-color="#8a6200"/>
+    </linearGradient>
+    <linearGradient id="goldShine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="48%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="52%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="58" cy="76" rx="34" ry="6" fill="#000000" opacity="0.12"/>
+  <polygon points="72,24 104,38 104,56 72,70 72,24" fill="url(#goldSide)"/>
+  <polygon points="16,38 72,24 72,70 16,56" fill="url(#goldFront)"/>
+  <polygon points="16,38 44,24 104,38 72,24" fill="url(#goldTop)"/>
+  <polygon points="16,38 44,24 104,38 72,24" fill="url(#goldShine)" class="gold-bar-shimmer"/>
+  <polygon points="28,41 52,31 78,41 54,49" fill="#fff6bf" opacity="0.28"/>
+  <line x1="16" y1="38" x2="72" y2="24" stroke="#fff2bf" stroke-opacity="0.35" stroke-width="1"/>
+  <line x1="72" y1="24" x2="104" y2="38" stroke="#fff2bf" stroke-opacity="0.25" stroke-width="1"/>
+</svg>
