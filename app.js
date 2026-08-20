@@ -24,7 +24,8 @@ const TOWER_NAMES = {
 
 const WAVE_PEACE_MS = 10000;
 const WAVE_ATTACK_MS = 60000;
-const SPAWN_INTERVAL_MS = 2200;
+const SPAWN_INTERVAL_MS = 2600;
+const PEACE_REGEN_CAP_RATIO = 0.1;
 const CASTLE_TARGET = { x: 50, y: 27 };
 const CASTLE_ATTACK_RANGE = 5.5;
 const ENEMY_SPEED_MULTIPLIER = 0.45;
@@ -321,6 +322,7 @@ const combat = {
     se: TOWER_IDLE_ANGLES.se
   },
   lastSpawnWallAt: 0,
+  peaceRegenUsed: 0,
   lastHudRefresh: 0
 };
 
@@ -868,7 +870,13 @@ function updateCastleRegen(deltaSeconds) {
   const regen = getCastleRegenPerSecond();
   if (regen <= 0) return;
 
-  state.castleHealth = Math.min(maxHealth, state.castleHealth + regen * deltaSeconds);
+  const peaceRegenCap = Math.floor(maxHealth * PEACE_REGEN_CAP_RATIO);
+  const regenRemaining = Math.max(0, peaceRegenCap - (combat.peaceRegenUsed || 0));
+  if (regenRemaining <= 0) return;
+
+  const amount = Math.min(regenRemaining, regen * deltaSeconds);
+  state.castleHealth = Math.min(maxHealth, state.castleHealth + amount);
+  combat.peaceRegenUsed += amount;
   updateCastleHealthDisplay();
 }
 
@@ -877,7 +885,7 @@ function getTowerFireCooldownMs(dex) {
 }
 
 function getWaveMultiplier(wave) {
-  return 1 + (wave - 1) * 0.08;
+  return 1 + (wave - 1) * 0.05;
 }
 
 function pickEnemyType(wave) {
@@ -1082,6 +1090,7 @@ function startWaveCycle(now) {
   combat.phase = "peace";
   combat.phaseEndsAt = now + WAVE_PEACE_MS;
   combat.lastSpawnAt = 0;
+  combat.peaceRegenUsed = 0;
 }
 
 function beginAttackPhase(now) {
@@ -1462,6 +1471,7 @@ function resetCombatState() {
   combat.phaseEndsAt = 0;
   combat.lastSpawnAt = 0;
   combat.lastSpawnWallAt = 0;
+  combat.peaceRegenUsed = 0;
   combat.nextEnemyId = 1;
   combat.nextArrowId = 1;
   combat.nextTroopId = 1;
