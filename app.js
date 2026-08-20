@@ -24,8 +24,10 @@ const TOWER_NAMES = {
 
 const WAVE_PEACE_MS = 10000;
 const WAVE_ATTACK_MS = 60000;
-const SPAWN_INTERVAL_MS = 2600;
+const SPAWN_INTERVAL_MS = 3200;
 const PEACE_REGEN_CAP_RATIO = 0.1;
+const WAVE_SCALE_PER_LEVEL = 0.03;
+const GOLD_REWARD_MULTIPLIER = 0.72;
 const CASTLE_TARGET = { x: 50, y: 27 };
 const CASTLE_ATTACK_RANGE = 5.5;
 const ENEMY_SPEED_MULTIPLIER = 0.45;
@@ -228,22 +230,22 @@ const BUILDING_SLOT_LAYOUT = {
 const BUILDING_DEFS = {
   farm: {
     label: "Farm",
-    buildCost: 75,
+    buildCost: 100,
     desc: "Feeds your realm and raises population capacity."
   },
   barracks: {
     label: "Barracks",
-    buildCost: 100,
+    buildCost: 130,
     desc: "Foot soldiers for the front line."
   },
   stables: {
     label: "Stables",
-    buildCost: 120,
+    buildCost: 155,
     desc: "Fast cavalry to chase enemies down."
   },
   archery: {
     label: "Shooting Range",
-    buildCost: 110,
+    buildCost: 140,
     desc: "Train ranged troops and extend crossbow tower range."
   }
 };
@@ -587,14 +589,14 @@ function getAvailablePopulation() {
 
 function getBuildDurationMs(buildingId, fromLevel) {
   if (fromLevel === 0) {
-    return buildingId === "farm" ? 35000 : 50000;
+    return buildingId === "farm" ? 50000 : 70000;
   }
-  return 30000 + fromLevel * 15000;
+  return 45000 + fromLevel * 22000;
 }
 
 function getTrainDurationMs(troopType) {
   const def = TROOP_DEFS[troopType];
-  return 8000 + def.cost * 500;
+  return 12000 + def.cost * 700;
 }
 
 function formatDuration(ms) {
@@ -696,8 +698,8 @@ function createDefaultArmy() {
 function getBuildingUpgradeCost(buildingId) {
   const building = state.buildings[buildingId];
   if (building.level === 0) return BUILDING_DEFS[buildingId].buildCost;
-  if (buildingId === "farm") return 55 * building.level;
-  return 70 * building.level;
+  if (buildingId === "farm") return 75 * building.level;
+  return 95 * building.level;
 }
 
 function isTroopUnlocked(troopType) {
@@ -723,11 +725,11 @@ function getCastleRegenPerSecond() {
 }
 
 function getCastleHealthUpgradeCost() {
-  return 80 * state.castle.healthUpgradeLevel;
+  return 110 * state.castle.healthUpgradeLevel;
 }
 
 function getCastleRegenUpgradeCost() {
-  return 5 + state.castle.regenLevel * 4;
+  return 8 + state.castle.regenLevel * 6;
 }
 
 function template(content, className = "center") {
@@ -950,7 +952,7 @@ function getTowerFireCooldownMs(dex) {
 }
 
 function getWaveMultiplier(wave) {
-  return 1 + (wave - 1) * 0.05;
+  return 1 + (wave - 1) * WAVE_SCALE_PER_LEVEL;
 }
 
 function pickEnemyType(wave) {
@@ -977,7 +979,7 @@ function getEnemyRewards(type, wave) {
   }
 
   return {
-    gold: Math.round(def.gold * multiplier),
+    gold: Math.round(def.gold * multiplier * GOLD_REWARD_MULTIPLIER),
     diamonds
   };
 }
@@ -1573,11 +1575,11 @@ function resetCombatRuntime() {
 }
 
 function getDamageUpgradeCost(tower) {
-  return 50 * tower.arrowDamageLevel;
+  return 65 * tower.arrowDamageLevel;
 }
 
 function getDexUpgradeCost(tower) {
-  return 40 * tower.dexLevel;
+  return 55 * tower.dexLevel;
 }
 
 function enterCastle(username) {
@@ -2059,8 +2061,8 @@ function renderShopPanel() {
       </div>
       ${shopMessage}
       <div class="shop-grid">
-        ${renderShopTrade(15, 175, "gold-175")}
-        ${renderShopTrade(30, 500, "gold-500")}
+        ${renderShopTrade(15, 150, "gold-150")}
+        ${renderShopTrade(30, 420, "gold-420")}
       </div>
       <div class="button-row">
         <button class="button secondary" type="button" data-action="close-shop">Back to Castle</button>
