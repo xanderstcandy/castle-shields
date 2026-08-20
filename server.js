@@ -17,23 +17,28 @@ const types = {
 };
 
 http.createServer((req, res) => {
-  const url = decodeURIComponent(req.url.split("?")[0]);
-  const filePath = path.join(root, url === "/" ? "index.html" : url);
+  let urlPath = decodeURIComponent(req.url.split("?")[0]);
+  if (urlPath === "/") urlPath = "/index.html";
 
-  if (!filePath.startsWith(root)) {
+  const relativePath = urlPath.replace(/^\/+/, "");
+  const filePath = path.normalize(path.join(root, relativePath));
+  const resolvedPath = path.resolve(filePath);
+  const resolvedRoot = path.resolve(root);
+
+  if (!resolvedPath.startsWith(resolvedRoot + path.sep) && resolvedPath !== resolvedRoot) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
   }
 
-  fs.readFile(filePath, (err, data) => {
+  fs.readFile(resolvedPath, (err, data) => {
     if (err) {
       res.writeHead(err.code === "ENOENT" ? 404 : 500);
       res.end(err.code === "ENOENT" ? "Not found" : "Server error");
       return;
     }
 
-    res.writeHead(200, { "Content-Type": types[path.extname(filePath)] || "application/octet-stream" });
+    res.writeHead(200, { "Content-Type": types[path.extname(resolvedPath)] || "application/octet-stream" });
     res.end(data);
   });
 }).listen(port, "0.0.0.0", () => {
