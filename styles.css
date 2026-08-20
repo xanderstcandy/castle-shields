@@ -1613,10 +1613,10 @@ button {
   left: 50%;
   z-index: 3;
   display: grid;
-  grid-template-columns: 42px minmax(180px, 22vw) 42px;
-  grid-template-rows: 42px minmax(150px, 16vw) 42px;
+  grid-template-columns: 34px minmax(150px, 18vw) 34px;
+  grid-template-rows: 34px minmax(120px, 13vw) 34px;
   transform: translateX(-50%);
-  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.28));
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.28));
 }
 
 .castle-corner {
@@ -1692,8 +1692,8 @@ button {
 .tower-crossbow {
   position: absolute;
   z-index: 2;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   pointer-events: none;
   transform-origin: 50% 50%;
   transform: rotate(var(--crossbow-aim, 0deg));
@@ -1816,7 +1816,7 @@ button {
   position: absolute;
   left: 50%;
   top: -2px;
-  width: 54px;
+  width: 44px;
   height: calc(100% + 4px);
   transform: translateX(-50%);
   background: linear-gradient(180deg, #b08968 0%, #8b6914 100%);
@@ -2650,8 +2650,8 @@ button {
 @media (max-width: 720px) {
   .castle-compound {
     top: 6px;
-    grid-template-columns: 32px minmax(140px, 42vw) 32px;
-    grid-template-rows: 32px minmax(118px, 34vw) 32px;
+    grid-template-columns: 28px minmax(118px, 36vw) 28px;
+    grid-template-rows: 28px minmax(96px, 28vw) 28px;
   }
 
   .castle-train {

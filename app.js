@@ -241,9 +241,9 @@ const BUILDING_DEFS = {
     desc: "Fast cavalry to chase enemies down."
   },
   archery: {
-    label: "Archery Range",
+    label: "Shooting Range",
     buildCost: 110,
-    desc: "Ranged troops to strike from afar."
+    desc: "Train ranged troops and extend crossbow tower range."
   }
 };
 
@@ -660,6 +660,11 @@ function getArmyCount() {
   return Object.values(state.army).reduce((sum, count) => sum + count, 0);
 }
 
+function getTowerRange() {
+  const shootingRangeLevel = state.buildings.archery?.level || 0;
+  return TOWER_RANGE + shootingRangeLevel * 4;
+}
+
 function getCastleMaxHealth() {
   return 100 + (state.castle.healthUpgradeLevel - 1) * 35;
 }
@@ -1005,7 +1010,7 @@ function createArrow({ towerId, damage, x, y, targetX, targetY }) {
 function findTargetForTower(towerId) {
   const origin = TOWER_POSITIONS[towerId];
   let closest = null;
-  let closestDistance = TOWER_RANGE;
+  let closestDistance = getTowerRange();
 
   for (const enemy of combat.enemies) {
     const dist = distance(origin.x, origin.y, enemy.x, enemy.y);
@@ -1699,7 +1704,9 @@ function renderBuildingPanel() {
   const troops = Object.entries(TROOP_DEFS).filter(([, troopDef]) => troopDef.building === buildingId);
   const extraInfo = buildingId === "farm"
     ? `<p class="military-farm-pop">+${POPULATION_PER_FARM_LEVEL} population per level · cap ${getMaxPopulation()}</p>`
-    : "";
+    : buildingId === "archery"
+      ? `<p class="military-farm-pop">Upgrade with gold · +4 tower range per level · current range ${getTowerRange()}</p>`
+      : "";
   const troopSection = troops.length && level > 0
     ? `<div class="military-troop-grid">${troops.map(([troopType, troopDef]) => renderTroopTrainCard(troopType, troopDef)).join("")}</div>`
     : "";
