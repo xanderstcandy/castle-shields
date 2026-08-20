@@ -1,5 +1,6 @@
 const app = document.querySelector("#app");
-const ACCOUNTS_KEY = "castleSheildsAccounts";
+const ACCOUNTS_KEY = "castleShieldsAccounts";
+const LEGACY_ACCOUNTS_KEY = "castleSheildsAccounts";
 const TOWER_IDS = ["nw", "ne", "sw", "se"];
 const ENEMY_TYPES = [
   "zombie",
@@ -693,7 +694,16 @@ function render() {
 
 function loadAccounts() {
   try {
-    return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "[]");
+    const saved = localStorage.getItem(ACCOUNTS_KEY);
+    if (saved) return JSON.parse(saved);
+
+    const legacy = localStorage.getItem(LEGACY_ACCOUNTS_KEY);
+    if (legacy) {
+      localStorage.setItem(ACCOUNTS_KEY, legacy);
+      return JSON.parse(legacy);
+    }
+
+    return [];
   } catch {
     return [];
   }

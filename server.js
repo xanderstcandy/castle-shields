@@ -42,5 +42,5 @@ http.createServer((req, res) => {
     res.end(data);
   });
 }).listen(port, "0.0.0.0", () => {
-  console.log(`Castle Sheilds listening on 0.0.0.0:${port}`);
+  console.log(`Castle Shields listening on 0.0.0.0:${port}`);
 });

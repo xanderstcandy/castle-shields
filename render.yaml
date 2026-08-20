@@ -3,7 +3,7 @@
 
 services:
   - type: web
-    name: castle-sheilds
+    name: castle-shields
     runtime: node
     plan: free
     region: oregon
