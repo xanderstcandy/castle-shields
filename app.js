@@ -27,7 +27,8 @@ const WAVE_ATTACK_MS = 60000;
 const SPAWN_INTERVAL_MS = 2200;
 const CASTLE_TARGET = { x: 50, y: 27 };
 const CASTLE_ATTACK_RANGE = 5.5;
-const ENEMY_SPEED_MULTIPLIER = 0.9;
+const ENEMY_SPEED_MULTIPLIER = 0.45;
+const TROOP_SPEED_MULTIPLIER = 0.765;
 const ENEMY_STAT_MULTIPLIER = 0.55;
 const ARROW_SPEED = 0.38;
 const TOWER_RANGE = 42;
@@ -1114,7 +1115,7 @@ function deployArmyOnAttack() {
         health: def.health,
         maxHealth: def.health,
         damage: def.damage,
-        speed: def.speed * ENEMY_SPEED_MULTIPLIER * 0.85,
+        speed: def.speed * TROOP_SPEED_MULTIPLIER,
         range: def.range,
         attackMs: def.attackMs,
         color: def.color,
