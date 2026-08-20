@@ -291,6 +291,7 @@ const state = {
   militaryMessageType: "",
   buildingMessage: "",
   buildingMessageType: "",
+  gameOver: false,
   error: "",
   success: ""
 };
@@ -493,6 +494,27 @@ function applyCombatSave(saved) {
   return true;
 }
 
+function resetAccountProgressToDefault() {
+  state.gold = 100;
+  state.diamonds = 0;
+  state.towers = createDefaultTowers();
+  state.castle = createDefaultCastle();
+  state.buildings = createDefaultBuildings();
+  state.army = createDefaultArmy();
+  state.jobQueue = createDefaultJobQueue();
+  state.nextJobId = 1;
+  state.shopOpen = false;
+  state.militaryPanelOpen = false;
+  state.selectedTower = "";
+  state.selectedBuilding = "";
+  state.castlePanelOpen = false;
+  state.shopMessage = "";
+  state.towerMessage = "";
+  state.castleMessage = "";
+  state.militaryMessage = "";
+  state.buildingMessage = "";
+}
+
 function startFreshCombat() {
   resetCombatState();
   combat.phaseEndsAt = performance.now() + WAVE_PEACE_MS;
@@ -500,11 +522,17 @@ function startFreshCombat() {
 }
 
 function handlePlayerDeath(shouldRender = true) {
+  if (state.gameOver) return;
+  resetAccountProgressToDefault();
   startFreshCombat();
+  state.gameOver = true;
   if (state.username) saveAccountProgress(state.username);
-  state.militaryMessage = "The castle fell! Your defenses reset to Wave 1.";
-  state.militaryMessageType = "error";
   if (shouldRender) render();
+}
+
+function dismissGameOver() {
+  state.gameOver = false;
+  render();
 }
 
 function getMaxPopulation() {
@@ -854,7 +882,7 @@ function saveAccountProgress(username) {
 }
 
 function damageCastle(amount) {
-  if (state.castleHealth <= 0) return;
+  if (state.gameOver || state.castleHealth <= 0) return;
   state.castleHealth = Math.max(0, state.castleHealth - amount);
   updateCastleHealthDisplay();
   if (state.castleHealth <= 0) {
@@ -1417,7 +1445,7 @@ function updateWaveHud() {
       <span class="castle-health-value">${Math.ceil(state.castleHealth)} / ${maxHealth}</span>
     </div>
     ${regen > 0 ? `<span class="wave-hud-regen">Regen: ${regen}/s</span>` : ""}
-    ${state.castleHealth <= 0 ? `<span class="wave-hud-breach">Castle breached!</span>` : ""}
+    ${state.castleHealth <= 0 ? `<span class="wave-hud-breach">Game Over</span>` : ""}
   `;
 }
 
@@ -1943,6 +1971,17 @@ function renderCastle() {
       ${state.selectedBuilding ? renderBuildingPanel() : ""}
       ${state.selectedTower ? renderTowerUpgradePanel() : ""}
       ${state.castlePanelOpen ? renderCastleUpgradePanel() : ""}
+      ${state.gameOver ? `
+        <div class="game-over-overlay">
+          <div class="game-over-panel">
+            <p class="shop-kicker">Defeat</p>
+            <h2>Game Over</h2>
+            <p>Your castle was destroyed. Gold, diamonds, buildings, troops, and upgrades have been reset.</p>
+            <p class="game-over-start">Starting fresh at Wave 1 with 100 gold.</p>
+            <button class="button" type="button" data-action="dismiss-game-over">Start Again</button>
+          </div>
+        </div>
+      ` : ""}
     </div>
   `, "castle-screen");
 }
@@ -2206,6 +2245,13 @@ app.addEventListener("click", (event) => {
     render();
     return;
   }
+
+  if (actionTarget.dataset.action === "dismiss-game-over") {
+    dismissGameOver();
+    return;
+  }
+
+  if (state.gameOver && actionTarget.dataset.action !== "show-sign-in") return;
 
   if (actionTarget.dataset.action === "open-military") {
     closeCastlePanels();

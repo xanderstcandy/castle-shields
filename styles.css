@@ -2676,3 +2676,45 @@ button {
     height: 16px;
   }
 }
+
+.game-over-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.game-over-panel {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 14px;
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(248, 113, 113, 0.22), transparent 14rem),
+    radial-gradient(circle at 88% 18%, rgba(251, 191, 36, 0.14), transparent 12rem),
+    rgba(7, 14, 31, 0.96);
+  text-align: center;
+}
+
+.game-over-panel h2 {
+  margin: 0;
+  font-size: clamp(2.4rem, 7vw, 3.6rem);
+  line-height: 0.95;
+  color: #fecaca;
+}
+
+.game-over-panel p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.game-over-start {
+  font-weight: 600;
+  color: #fde68a;
+}
