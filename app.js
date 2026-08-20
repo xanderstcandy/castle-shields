@@ -31,7 +31,7 @@ const ENEMY_SPEED_MULTIPLIER = 0.45;
 const TROOP_SPEED_MULTIPLIER = 0.765;
 const ENEMY_STAT_MULTIPLIER = 0.55;
 const ARROW_SPEED = 0.38;
-const TOWER_RANGE = 42;
+const TOWER_RANGE = 58;
 
 const TOWER_POSITIONS = {
   nw: { x: 44, y: 11 },
@@ -406,7 +406,6 @@ function serializeCombatSave() {
     nextEnemyId: combat.nextEnemyId,
     nextArrowId: combat.nextArrowId,
     nextTroopId: combat.nextTroopId,
-    lastFireTimes: structuredClone(combat.lastFireTimes),
     towerAimAngles: structuredClone(combat.towerAimAngles)
   };
 }
@@ -464,8 +463,7 @@ function applyCombatSave(saved) {
     nw: 0,
     ne: 0,
     sw: 0,
-    se: 0,
-    ...progressed.lastFireTimes
+    se: 0
   };
   combat.towerAimAngles = {
     nw: TOWER_IDLE_ANGLES.nw,
@@ -1007,6 +1005,12 @@ function createArrow({ towerId, damage, x, y, targetX, targetY }) {
   return arrow;
 }
 
+function canTowerFire(towerId, now, cooldown) {
+  const lastFire = combat.lastFireTimes[towerId] || 0;
+  if (lastFire > now) return true;
+  return now - lastFire >= cooldown;
+}
+
 function findTargetForTower(towerId) {
   const origin = TOWER_POSITIONS[towerId];
   let closest = null;
@@ -1310,7 +1314,7 @@ function updateCombat(now) {
 
     const tower = state.towers[towerId];
     const cooldown = getTowerFireCooldownMs(tower.dex);
-    if (now - combat.lastFireTimes[towerId] < cooldown) continue;
+    if (!canTowerFire(towerId, now, cooldown)) continue;
 
     const origin = TOWER_POSITIONS[towerId];
     combat.lastFireTimes[towerId] = now;
