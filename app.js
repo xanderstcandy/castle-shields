@@ -521,17 +521,38 @@ function startFreshCombat() {
   state.castleHealth = getCastleMaxHealth();
 }
 
+function refreshCombatHud() {
+  updateWaveHud();
+  updateCastleHealthDisplay();
+}
+
 function handlePlayerDeath(shouldRender = true) {
-  if (state.gameOver) return;
+  if (state.gameOver) {
+    if (state.castleHealth <= 0) {
+      state.castleHealth = getCastleMaxHealth();
+      if (state.username) saveAccountProgress(state.username);
+      refreshCombatHud();
+      if (shouldRender) render();
+    }
+    return;
+  }
+
+  state.gameOver = true;
   resetAccountProgressToDefault();
   startFreshCombat();
-  state.gameOver = true;
+  state.castleHealth = getCastleMaxHealth();
   if (state.username) saveAccountProgress(state.username);
+  refreshCombatHud();
   if (shouldRender) render();
 }
 
 function dismissGameOver() {
   state.gameOver = false;
+  if (state.castleHealth <= 0) {
+    state.castleHealth = getCastleMaxHealth();
+    if (state.username) saveAccountProgress(state.username);
+  }
+  refreshCombatHud();
   render();
 }
 
@@ -859,6 +880,17 @@ function syncAccountProgress(username) {
   state.nextJobId = account.nextJobId;
   processOverdueJobs();
   applyCombatSave(structuredClone(account.combat));
+  account.gold = state.gold;
+  account.diamonds = state.diamonds;
+  account.towers = structuredClone(state.towers);
+  account.castle = structuredClone(state.castle);
+  account.buildings = structuredClone(state.buildings);
+  account.army = structuredClone(state.army);
+  account.jobQueue = structuredClone(state.jobQueue);
+  account.nextJobId = state.nextJobId;
+  if (state.screen === "castle") {
+    account.combat = serializeCombatSave();
+  }
   saveAccounts(accounts);
 }
 
@@ -892,6 +924,11 @@ function damageCastle(amount) {
 
 function updateCastleRegen(deltaSeconds) {
   if (combat.phase !== "peace") return;
+  if (state.castleHealth <= 0) {
+    handlePlayerDeath(false);
+    refreshCombatHud();
+    return;
+  }
   const maxHealth = getCastleMaxHealth();
   if (state.castleHealth >= maxHealth) return;
 
@@ -1323,6 +1360,14 @@ function updateArrows(deltaSeconds) {
 }
 
 function updateCombat(now) {
+  if (state.gameOver) return;
+
+  if (state.castleHealth <= 0) {
+    handlePlayerDeath(false);
+    refreshCombatHud();
+    return;
+  }
+
   const deltaSeconds = combat.lastFrameTime
     ? Math.min(0.05, (now - combat.lastFrameTime) / 1000)
     : 0.016;
@@ -1464,6 +1509,13 @@ function syncCombatLayer() {
 
 function combatLoop(now) {
   if (!combat.loopRunning) return;
+
+  if (state.gameOver) {
+    refreshCombatHud();
+    combat.lastFrameTime = now;
+    combat.loopFrame = requestAnimationFrame(combatLoop);
+    return;
+  }
 
   updateCombat(now);
   syncCombatLayer();
