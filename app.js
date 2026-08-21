@@ -251,7 +251,7 @@ const BUILDING_DEFS = {
 const MAX_BUILDING_LEVEL = 3;
 const MAX_TOWER_UPGRADE_LEVEL = 10;
 const BASE_POPULATION = 3;
-const POPULATION_PER_FARM_LEVEL = 15;
+const POPULATION_PER_FARM_LEVEL = 5;
 
 const TROOP_DEFS = {
   militia: { label: "Militia", building: "barracks", minLevel: 1, health: 24, damage: 6, speed: 9, range: 2.5, attackMs: 900, cost: 12, population: 1, color: "#64748b" },
