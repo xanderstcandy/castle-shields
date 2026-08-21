@@ -1342,35 +1342,42 @@ function findNearestEnemyForTroop(troop) {
   return { enemy: nearest, dist: nearestDistance };
 }
 
+const MELEE_CONTACT_RANGE = 2.4;
+
+function applyEnemyMeleeDamageToTroop(troop, deltaSeconds) {
+  for (const enemy of combat.enemies) {
+    const dist = distance(troop.x, troop.y, enemy.x, enemy.y);
+    if (dist <= MELEE_CONTACT_RANGE) {
+      troop.health -= enemy.damage * deltaSeconds * 0.45;
+    }
+  }
+}
+
 function updateTroops(deltaSeconds, now) {
   for (const troop of combat.troops) {
+    applyEnemyMeleeDamageToTroop(troop, deltaSeconds);
+
     const target = findNearestEnemyForTroop(troop);
-    if (target) {
-      const { enemy, dist } = target;
-      if (dist <= troop.range) {
-        if (now - troop.lastAttackAt >= troop.attackMs) {
-          troop.lastAttackAt = now;
-          enemy.health -= troop.damage;
-          if (enemy.health <= 0) {
-            awardEnemyKill(enemy);
-            removeEnemy(enemy.id);
-          }
+    if (!target) continue;
+
+    const { enemy, dist } = target;
+    if (dist <= troop.range) {
+      if (now - troop.lastAttackAt >= troop.attackMs) {
+        troop.lastAttackAt = now;
+        enemy.health -= troop.damage;
+        if (enemy.health <= 0) {
+          awardEnemyKill(enemy);
+          removeEnemy(enemy.id);
         }
-        continue;
       }
-      const dx = enemy.x - troop.x;
-      const dy = enemy.y - troop.y;
-      const step = troop.speed * deltaSeconds;
-      troop.x += (dx / dist) * step;
-      troop.y += (dy / dist) * step;
+      continue;
     }
 
-    for (const enemy of combat.enemies) {
-      const dist = distance(troop.x, troop.y, enemy.x, enemy.y);
-      if (dist <= 2.4) {
-        troop.health -= enemy.damage * deltaSeconds * 0.45;
-      }
-    }
+    const dx = enemy.x - troop.x;
+    const dy = enemy.y - troop.y;
+    const step = troop.speed * deltaSeconds;
+    troop.x += (dx / dist) * step;
+    troop.y += (dy / dist) * step;
   }
 
   combat.troops = combat.troops.filter((troop) => troop.health > 0);
