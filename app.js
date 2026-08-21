@@ -1344,10 +1344,15 @@ function findNearestEnemyForTroop(troop) {
 
 const MELEE_CONTACT_RANGE = 2.4;
 
+function getTroopContactRange(troop) {
+  return troop.range > 5 ? MELEE_CONTACT_RANGE : troop.range;
+}
+
 function applyEnemyMeleeDamageToTroop(troop, deltaSeconds) {
+  const contactRange = getTroopContactRange(troop);
   for (const enemy of combat.enemies) {
     const dist = distance(troop.x, troop.y, enemy.x, enemy.y);
-    if (dist <= MELEE_CONTACT_RANGE) {
+    if (dist <= contactRange) {
       troop.health -= enemy.damage * deltaSeconds * 0.45;
     }
   }
