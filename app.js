@@ -696,8 +696,8 @@ function createDefaultArmy() {
 function getBuildingUpgradeCost(buildingId) {
   const building = state.buildings[buildingId];
   if (building.level === 0) return BUILDING_DEFS[buildingId].buildCost;
-  if (buildingId === "farm") return 55 * building.level;
-  return 70 * building.level;
+  if (buildingId === "farm") return 50 * building.level;
+  return 63 * building.level;
 }
 
 function isTroopUnlocked(troopType) {
@@ -723,11 +723,11 @@ function getCastleRegenPerSecond() {
 }
 
 function getCastleHealthUpgradeCost() {
-  return 80 * state.castle.healthUpgradeLevel;
+  return 72 * state.castle.healthUpgradeLevel;
 }
 
 function getCastleRegenUpgradeCost() {
-  return 5 + state.castle.regenLevel * 4;
+  return 4 + state.castle.regenLevel * 3;
 }
 
 function template(content, className = "center") {
@@ -1573,11 +1573,11 @@ function resetCombatRuntime() {
 }
 
 function getDamageUpgradeCost(tower) {
-  return 50 * tower.arrowDamageLevel;
+  return 45 * tower.arrowDamageLevel;
 }
 
 function getDexUpgradeCost(tower) {
-  return 40 * tower.dexLevel;
+  return 36 * tower.dexLevel;
 }
 
 function enterCastle(username) {
