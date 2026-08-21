@@ -353,7 +353,7 @@ function createDefaultTowers() {
 function createDefaultCastle() {
   return {
     healthUpgradeLevel: 1,
-    regenLevel: 0
+    regenLevel: 1
   };
 }
 
@@ -487,6 +487,7 @@ function applyCombatSave(saved) {
 
   combat.lastSpawnWallAt = progressed.lastSpawnWallAt || 0;
   combat.lastFrameTime = 0;
+  combat.peaceRegenUsed = 0;
   state.castleHealth = progressed.castleHealth ?? getCastleMaxHealth();
 
   if (state.castleHealth <= 0) {
@@ -658,6 +659,7 @@ function createJobTimestamps(durationMs) {
 }
 
 function runJobQueueTick(shouldRender = false) {
+  tickPeaceRegen(0.25);
   const jobsChanged = processJobQueue(Date.now());
   if (jobsChanged && shouldRender && state.screen === "castle") {
     render();
@@ -902,7 +904,9 @@ function ensureAccountTowers(account) {
 function ensureAccountCastle(account) {
   if (!account.castle) account.castle = createDefaultCastle();
   if (account.castle.healthUpgradeLevel === undefined) account.castle.healthUpgradeLevel = 1;
-  if (account.castle.regenLevel === undefined) account.castle.regenLevel = 0;
+  if (account.castle.regenLevel === undefined || account.castle.regenLevel < 1) {
+    account.castle.regenLevel = 1;
+  }
 }
 
 function ensureAccountBuildings(account) {
@@ -1027,12 +1031,9 @@ function damageCastle(amount) {
 }
 
 function updateCastleRegen(deltaSeconds) {
-  if (combat.phase !== "peace") return;
-  if (state.castleHealth <= 0) {
-    handlePlayerDeath(false);
-    refreshCombatHud();
-    return;
-  }
+  if (combat.phase !== "peace" || state.gameOver) return;
+  if (state.castleHealth <= 0) return;
+
   const maxHealth = getCastleMaxHealth();
   if (state.castleHealth >= maxHealth) return;
 
@@ -1040,13 +1041,21 @@ function updateCastleRegen(deltaSeconds) {
   if (regen <= 0) return;
 
   const peaceRegenCap = Math.floor(maxHealth * PEACE_REGEN_CAP_RATIO);
-  const regenRemaining = Math.max(0, peaceRegenCap - (combat.peaceRegenUsed || 0));
+  const regenRemaining = Math.max(0, peaceRegenCap - combat.peaceRegenUsed);
   if (regenRemaining <= 0) return;
 
   const amount = Math.min(regenRemaining, regen * deltaSeconds);
+  if (amount <= 0) return;
+
   state.castleHealth = Math.min(maxHealth, state.castleHealth + amount);
   combat.peaceRegenUsed += amount;
   updateCastleHealthDisplay();
+  refreshCombatHud();
+}
+
+function tickPeaceRegen(deltaSeconds) {
+  if (state.screen !== "castle") return;
+  updateCastleRegen(deltaSeconds);
 }
 
 function getTowerFireCooldownMs(dex) {
@@ -1267,6 +1276,7 @@ function beginAttackPhase(now) {
   combat.phaseEndsAt = now + WAVE_ATTACK_MS;
   combat.lastSpawnAt = now;
   combat.lastSpawnWallAt = Date.now();
+  combat.peaceRegenUsed = 0;
   deployArmyOnAttack();
 }
 
@@ -1498,7 +1508,6 @@ function updateCombat(now) {
     ? Math.min(0.05, (now - combat.lastFrameTime) / 1000)
     : 0.016;
   updateWaveTiming(now);
-  updateCastleRegen(deltaSeconds);
   updateTowerCrossbowAim(deltaSeconds);
 
   if (combat.phase !== "attack") return;
