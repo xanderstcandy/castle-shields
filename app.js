@@ -229,7 +229,7 @@ const BUILDING_DEFS = {
   farm: {
     label: "Farm",
     buildCost: 75,
-    desc: "Feeds your realm and raises population capacity."
+    desc: "Feeds your realm and adds +5 population capacity per level."
   },
   barracks: {
     label: "Barracks",

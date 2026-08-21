@@ -38,7 +38,15 @@ http.createServer((req, res) => {
       return;
     }
 
-    res.writeHead(200, { "Content-Type": types[path.extname(resolvedPath)] || "application/octet-stream" });
+    const ext = path.extname(resolvedPath);
+    const cacheControl = ext === ".html" || ext === ".js"
+      ? "no-cache"
+      : "public, max-age=86400";
+
+    res.writeHead(200, {
+      "Content-Type": types[ext] || "application/octet-stream",
+      "Cache-Control": cacheControl
+    });
     res.end(data);
   });
 }).listen(port, "0.0.0.0", () => {
