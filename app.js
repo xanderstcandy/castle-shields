@@ -329,6 +329,8 @@ const combat = {
 };
 
 let combatLayer = null;
+let jobTimerId = 0;
+const jobTimeouts = new Map();
 
 function createDefaultTower() {
   return {
@@ -504,6 +506,7 @@ function resetAccountProgressToDefault() {
   state.army = createDefaultArmy();
   state.jobQueue = createDefaultJobQueue();
   state.nextJobId = 1;
+  clearJobTimeouts();
   state.shopOpen = false;
   state.militaryPanelOpen = false;
   state.selectedTower = "";
@@ -618,12 +621,17 @@ function getJobDurationMs(job) {
 }
 
 function normalizeJob(job) {
-  const durationMs = getJobDurationMs(job);
-  if (job.completesAtWall == null) {
+  let durationMs = getJobDurationMs(job);
+  if (durationMs <= 0) {
+    durationMs = job.kind === "train"
+      ? getTrainDurationMs(job.troopType)
+      : getBuildDurationMs(job.buildingId, Math.max(0, (job.targetLevel || 1) - 1));
+  }
+  if (job.completesAtWall == null || !Number.isFinite(job.completesAtWall)) {
     job.startedAtWall = Date.now();
     job.completesAtWall = Date.now() + durationMs;
   }
-  if (job.durationMs == null) job.durationMs = durationMs;
+  job.durationMs = durationMs;
   return job;
 }
 
@@ -640,12 +648,63 @@ function getJobRemainingMs(job, now = Date.now()) {
 }
 
 function createJobTimestamps(durationMs) {
+  const safeDurationMs = Math.max(1000, durationMs);
   const startedAtWall = Date.now();
   return {
-    durationMs,
+    durationMs: safeDurationMs,
     startedAtWall,
-    completesAtWall: startedAtWall + durationMs
+    completesAtWall: startedAtWall + safeDurationMs
   };
+}
+
+function runJobQueueTick(shouldRender = false) {
+  const jobsChanged = processJobQueue(Date.now());
+  if (jobsChanged && shouldRender && state.screen === "castle") {
+    render();
+    return true;
+  }
+  if (state.screen === "castle") {
+    updateJobQueueDisplay(Date.now());
+    updateBuildingSlotsDisplay(Date.now());
+    updatePopulationDisplay();
+  }
+  return jobsChanged;
+}
+
+function scheduleJobCompletion(job) {
+  if (!job?.id) return;
+  if (jobTimeouts.has(job.id)) clearTimeout(jobTimeouts.get(job.id));
+  const delay = Math.max(50, getJobRemainingMs(job));
+  const timeoutId = setTimeout(() => {
+    jobTimeouts.delete(job.id);
+    runJobQueueTick(true);
+  }, delay);
+  jobTimeouts.set(job.id, timeoutId);
+}
+
+function rescheduleAllJobs() {
+  for (const job of state.jobQueue) {
+    scheduleJobCompletion(job);
+  }
+}
+
+function clearJobTimeouts() {
+  for (const timeoutId of jobTimeouts.values()) clearTimeout(timeoutId);
+  jobTimeouts.clear();
+}
+
+function startJobScheduler() {
+  if (jobTimerId) return;
+  jobTimerId = setInterval(() => runJobQueueTick(false), 250);
+  rescheduleAllJobs();
+}
+
+function stopJobScheduler() {
+  if (jobTimerId) {
+    clearInterval(jobTimerId);
+    jobTimerId = 0;
+  }
+  clearJobTimeouts();
 }
 
 function hasActiveBuildJob(buildingId) {
@@ -787,6 +846,7 @@ function render() {
     updateWaveHud();
     applyTowerCrossbowTransforms();
     if (!combat.loopRunning) startCombatLoop(true);
+    startJobScheduler();
   }
 }
 
@@ -922,6 +982,7 @@ function syncAccountProgress(username) {
   state.jobQueue = structuredClone(account.jobQueue);
   state.nextJobId = account.nextJobId;
   processOverdueJobs();
+  rescheduleAllJobs();
   applyCombatSave(structuredClone(account.combat));
   account.gold = state.gold;
   account.diamonds = state.diamonds;
@@ -1834,6 +1895,11 @@ function renderBuildingPanel() {
   const upgradeCost = getBuildingUpgradeCost(buildingId);
   const buildDuration = formatDuration(getBuildDurationMs(buildingId, level));
   const activeJob = getActiveBuildJob(buildingId);
+  const trainJobs = getActiveTrainJobsForBuilding(buildingId);
+  const jobProgress = [
+    activeJob ? renderJobProgress(activeJob, Date.now()) : "",
+    ...trainJobs.map((job) => renderJobProgress(job, Date.now()))
+  ].filter(Boolean).join("");
   const buildingMessage = state.buildingMessage
     ? `<p class="message ${state.buildingMessageType === "error" ? "error" : "success"}">${escapeHtml(state.buildingMessage)}</p>`
     : `<p class="message"></p>`;
@@ -1868,7 +1934,7 @@ function renderBuildingPanel() {
         </div>
       </div>
       ${extraInfo}
-      ${activeJob ? renderJobProgress(activeJob, Date.now()) : ""}
+      ${jobProgress}
       ${buildingMessage}
       <div class="button-row vertical">
         <button class="button" type="button" data-action="upgrade-building" data-building-id="${buildingId}" ${level >= MAX_BUILDING_LEVEL || activeJob ? "disabled" : ""}>
@@ -2252,6 +2318,10 @@ function upgradeBuilding(buildingId) {
     targetLevel,
     ...createJobTimestamps(durationMs)
   });
+  const newJob = state.jobQueue[state.jobQueue.length - 1];
+  scheduleJobCompletion(newJob);
+  startJobScheduler();
+  runJobQueueTick(false);
 
   setCampFeedback(`${def.label} ${building.level === 0 ? "construction" : "upgrade"} started. Ready in ${formatDuration(durationMs)}.`, "success");
   saveAccountProgress(state.username);
@@ -2296,6 +2366,10 @@ function trainTroop(troopType) {
     population: popCost,
     ...createJobTimestamps(durationMs)
   });
+  const newJob = state.jobQueue[state.jobQueue.length - 1];
+  scheduleJobCompletion(newJob);
+  startJobScheduler();
+  runJobQueueTick(false);
 
   setCampFeedback(`Training ${def.label}. Ready in ${formatDuration(durationMs)}.`, "success");
   saveAccountProgress(state.username);
@@ -2325,6 +2399,7 @@ app.addEventListener("click", (event) => {
   if (actionTarget.dataset.action === "show-sign-in") {
     if (state.username) saveAccountProgress(state.username);
     stopCombatLoop();
+    stopJobScheduler();
     state.screen = "sign-in";
     state.username = "";
     state.shopOpen = false;
