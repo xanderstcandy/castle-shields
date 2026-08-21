@@ -1356,13 +1356,13 @@ function updateTroops(deltaSeconds, now) {
             removeEnemy(enemy.id);
           }
         }
-      } else {
-        const dx = enemy.x - troop.x;
-        const dy = enemy.y - troop.y;
-        const step = troop.speed * deltaSeconds;
-        troop.x += (dx / dist) * step;
-        troop.y += (dy / dist) * step;
+        continue;
       }
+      const dx = enemy.x - troop.x;
+      const dy = enemy.y - troop.y;
+      const step = troop.speed * deltaSeconds;
+      troop.x += (dx / dist) * step;
+      troop.y += (dy / dist) * step;
     }
 
     for (const enemy of combat.enemies) {
@@ -1412,10 +1412,20 @@ function updateWaveTiming(now) {
   }
 }
 
+function isEnemyEngagedWithTroops(enemy) {
+  for (const troop of combat.troops) {
+    const dist = distance(enemy.x, enemy.y, troop.x, troop.y);
+    if (dist <= troop.range) return true;
+  }
+  return false;
+}
+
 function updateEnemies(deltaSeconds) {
   const attackers = [];
 
   for (const enemy of combat.enemies) {
+    if (isEnemyEngagedWithTroops(enemy)) continue;
+
     const dx = CASTLE_TARGET.x - enemy.x;
     const dy = CASTLE_TARGET.y - enemy.y;
     const dist = Math.hypot(dx, dy) || 1;
