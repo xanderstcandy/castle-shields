@@ -249,6 +249,7 @@ const BUILDING_DEFS = {
 };
 
 const MAX_BUILDING_LEVEL = 3;
+const MAX_TOWER_UPGRADE_LEVEL = 10;
 const BASE_POPULATION = 10;
 const POPULATION_PER_FARM_LEVEL = 15;
 
@@ -696,8 +697,8 @@ function createDefaultArmy() {
 function getBuildingUpgradeCost(buildingId) {
   const building = state.buildings[buildingId];
   if (building.level === 0) return BUILDING_DEFS[buildingId].buildCost;
-  if (buildingId === "farm") return 50 * building.level;
-  return 63 * building.level;
+  if (buildingId === "farm") return 55 * building.level;
+  return 70 * building.level;
 }
 
 function isTroopUnlocked(troopType) {
@@ -723,11 +724,11 @@ function getCastleRegenPerSecond() {
 }
 
 function getCastleHealthUpgradeCost() {
-  return 72 * state.castle.healthUpgradeLevel;
+  return 80 * state.castle.healthUpgradeLevel;
 }
 
 function getCastleRegenUpgradeCost() {
-  return 4 + state.castle.regenLevel * 3;
+  return 5 + state.castle.regenLevel * 4;
 }
 
 function template(content, className = "center") {
@@ -1573,11 +1574,11 @@ function resetCombatRuntime() {
 }
 
 function getDamageUpgradeCost(tower) {
-  return 45 * tower.arrowDamageLevel;
+  return 50 * tower.arrowDamageLevel;
 }
 
 function getDexUpgradeCost(tower) {
-  return 36 * tower.dexLevel;
+  return 40 * tower.dexLevel;
 }
 
 function enterCastle(username) {
@@ -1647,6 +1648,8 @@ function renderTowerUpgradePanel() {
   const damageCost = getDamageUpgradeCost(tower);
   const dexCost = getDexUpgradeCost(tower);
   const fireRate = getTowerFireCooldownMs(tower.dex);
+  const damageMaxed = tower.arrowDamageLevel >= MAX_TOWER_UPGRADE_LEVEL;
+  const dexMaxed = tower.dexLevel >= MAX_TOWER_UPGRADE_LEVEL;
 
   return `
     <div class="tower-upgrade-panel">
@@ -1656,11 +1659,11 @@ function renderTowerUpgradePanel() {
       <div class="stat-grid">
         <div class="stat">
           <span>Arrow Damage</span>
-          <strong>${tower.arrowDamage}</strong>
+          <strong>${tower.arrowDamage} / ${MAX_TOWER_UPGRADE_LEVEL}</strong>
         </div>
         <div class="stat">
           <span>Dex / Fire Rate</span>
-          <strong>${tower.dex}</strong>
+          <strong>${tower.dex} / ${MAX_TOWER_UPGRADE_LEVEL}</strong>
         </div>
         <div class="stat">
           <span>Shot Cooldown</span>
@@ -1668,11 +1671,11 @@ function renderTowerUpgradePanel() {
         </div>
       </div>
       <div class="button-row vertical">
-        <button class="button" type="button" data-action="upgrade-damage" data-tower-id="${state.selectedTower}">
-          Upgrade Arrow Damage (${damageCost} gold)
+        <button class="button" type="button" data-action="upgrade-damage" data-tower-id="${state.selectedTower}" ${damageMaxed ? "disabled" : ""}>
+          ${damageMaxed ? "Arrow Damage Maxed" : `Upgrade Arrow Damage (${damageCost} gold)`}
         </button>
-        <button class="button" type="button" data-action="upgrade-dex" data-tower-id="${state.selectedTower}">
-          Upgrade Dex (${dexCost} gold)
+        <button class="button" type="button" data-action="upgrade-dex" data-tower-id="${state.selectedTower}" ${dexMaxed ? "disabled" : ""}>
+          ${dexMaxed ? "Dex Maxed" : `Upgrade Dex (${dexCost} gold)`}
         </button>
         <button class="button secondary" type="button" data-action="close-tower">Close</button>
       </div>
@@ -2102,6 +2105,14 @@ function pixelSnakeLetter(headSide = "right") {
 function upgradeTowerStat(towerId, stat) {
   const tower = state.towers[towerId];
   if (!tower) return;
+
+  const level = stat === "damage" ? tower.arrowDamageLevel : tower.dexLevel;
+  if (level >= MAX_TOWER_UPGRADE_LEVEL) {
+    state.towerMessage = `This stat is already at max level (${MAX_TOWER_UPGRADE_LEVEL}).`;
+    state.towerMessageType = "error";
+    render();
+    return;
+  }
 
   const cost = stat === "damage" ? getDamageUpgradeCost(tower) : getDexUpgradeCost(tower);
   if (state.gold < cost) {
