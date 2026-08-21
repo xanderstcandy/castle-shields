@@ -606,6 +606,48 @@ function formatDuration(ms) {
   return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 }
 
+function getJobDurationMs(job) {
+  if (job.durationMs != null) return job.durationMs;
+  if (job.completesAtWall != null && job.startedAtWall != null) {
+    return job.completesAtWall - job.startedAtWall;
+  }
+  if (job.completesAt != null && job.startedAt != null) {
+    return job.completesAt - job.startedAt;
+  }
+  return 0;
+}
+
+function normalizeJob(job) {
+  const durationMs = getJobDurationMs(job);
+  if (job.completesAtWall == null) {
+    job.startedAtWall = Date.now();
+    job.completesAtWall = Date.now() + durationMs;
+  }
+  if (job.durationMs == null) job.durationMs = durationMs;
+  return job;
+}
+
+function normalizeJobQueue() {
+  state.jobQueue = state.jobQueue.map(normalizeJob);
+}
+
+function isJobComplete(job, now = Date.now()) {
+  return now >= job.completesAtWall;
+}
+
+function getJobRemainingMs(job, now = Date.now()) {
+  return Math.max(0, job.completesAtWall - now);
+}
+
+function createJobTimestamps(durationMs) {
+  const startedAtWall = Date.now();
+  return {
+    durationMs,
+    startedAtWall,
+    completesAtWall: startedAtWall + durationMs
+  };
+}
+
 function hasActiveBuildJob(buildingId) {
   return state.jobQueue.some((job) => job.kind === "build" && job.buildingId === buildingId);
 }
@@ -649,14 +691,14 @@ function completeJob(job) {
   }
 }
 
-function processJobQueue(now) {
+function processJobQueue(now = Date.now()) {
   if (!state.jobQueue.length) return false;
 
   let changed = false;
   const remaining = [];
 
   for (const job of state.jobQueue) {
-    if (now >= job.completesAt) {
+    if (isJobComplete(job, now)) {
       completeJob(job);
       changed = true;
     } else {
@@ -671,9 +713,9 @@ function processJobQueue(now) {
   return changed;
 }
 
-function renderJobProgress(job, now) {
-  const remainingMs = Math.max(0, job.completesAt - now);
-  const totalMs = job.completesAt - job.startedAt;
+function renderJobProgress(job, now = Date.now()) {
+  const remainingMs = getJobRemainingMs(job, now);
+  const totalMs = getJobDurationMs(job);
   const progress = totalMs > 0 ? Math.min(100, ((totalMs - remainingMs) / totalMs) * 100) : 100;
   const label = job.kind === "build"
     ? `${BUILDING_DEFS[job.buildingId].label} → Lv ${job.targetLevel}`
@@ -841,9 +883,9 @@ function ensureAccountCombat(account) {
 }
 
 function processOverdueJobs() {
-  const now = performance.now();
-  while (state.jobQueue.some((job) => now >= job.completesAt)) {
-    processJobQueue(now);
+  normalizeJobQueue();
+  while (state.jobQueue.some((job) => isJobComplete(job))) {
+    processJobQueue(Date.now());
   }
 }
 
@@ -1372,19 +1414,9 @@ function updateCombat(now) {
   const deltaSeconds = combat.lastFrameTime
     ? Math.min(0.05, (now - combat.lastFrameTime) / 1000)
     : 0.016;
-  const jobsChanged = processJobQueue(now);
   updateWaveTiming(now);
   updateCastleRegen(deltaSeconds);
   updateTowerCrossbowAim(deltaSeconds);
-
-  if (jobsChanged && state.screen === "castle") {
-    render();
-  } else if (now - combat.lastHudRefresh >= 500) {
-    updatePopulationDisplay();
-    updateJobQueueDisplay(now);
-    updateBuildingSlotsDisplay(now);
-    combat.lastHudRefresh = now;
-  }
 
   if (combat.phase !== "attack") return;
 
@@ -1443,7 +1475,7 @@ function updateJobQueueDisplay(now) {
     : `<p class="military-job-empty">No jobs in progress.</p>`;
 }
 
-function updateBuildingSlotsDisplay(now) {
+function updateBuildingSlotsDisplay(now = Date.now()) {
   for (const buildingId of BUILDING_IDS) {
     const slot = document.querySelector(`[data-building-slot="${buildingId}"]`);
     if (!slot) continue;
@@ -1452,8 +1484,9 @@ function updateBuildingSlotsDisplay(now) {
     const progressBar = slot.querySelector(".castle-building-progress");
     if (!job || !progressBar) continue;
 
-    const totalMs = job.completesAt - job.startedAt;
-    const elapsedMs = totalMs - Math.max(0, job.completesAt - now);
+    const totalMs = getJobDurationMs(job);
+    const remainingMs = getJobRemainingMs(job, now);
+    const elapsedMs = totalMs - remainingMs;
     const progress = totalMs > 0 ? Math.min(100, (elapsedMs / totalMs) * 100) : 100;
     progressBar.style.width = `${progress}%`;
   }
@@ -1510,6 +1543,17 @@ function syncCombatLayer() {
 
 function combatLoop(now) {
   if (!combat.loopRunning) return;
+
+  const wallNow = Date.now();
+  const jobsChanged = processJobQueue(wallNow);
+  if (jobsChanged && state.screen === "castle") {
+    render();
+  } else if (wallNow - combat.lastHudRefresh >= 500) {
+    updatePopulationDisplay();
+    updateJobQueueDisplay(wallNow);
+    updateBuildingSlotsDisplay(wallNow);
+    combat.lastHudRefresh = wallNow;
+  }
 
   if (state.gameOver) {
     refreshCombatHud();
@@ -1824,7 +1868,7 @@ function renderBuildingPanel() {
         </div>
       </div>
       ${extraInfo}
-      ${activeJob ? renderJobProgress(activeJob, performance.now()) : ""}
+      ${activeJob ? renderJobProgress(activeJob, Date.now()) : ""}
       ${buildingMessage}
       <div class="button-row vertical">
         <button class="button" type="button" data-action="upgrade-building" data-building-id="${buildingId}" ${level >= MAX_BUILDING_LEVEL || activeJob ? "disabled" : ""}>
@@ -1866,7 +1910,7 @@ function renderMilitaryPanel() {
   const militaryMessage = state.militaryMessage
     ? `<p class="message ${state.militaryMessageType === "error" ? "error" : "success"}">${escapeHtml(state.militaryMessage)}</p>`
     : `<p class="message"></p>`;
-  const now = performance.now();
+  const now = Date.now();
 
   return `
     <div class="shop-interior military-interior">
@@ -2196,7 +2240,7 @@ function upgradeBuilding(buildingId) {
     return;
   }
 
-  const now = performance.now();
+  const now = Date.now();
   const targetLevel = building.level + 1;
   const durationMs = getBuildDurationMs(buildingId, building.level);
 
@@ -2206,8 +2250,7 @@ function upgradeBuilding(buildingId) {
     kind: "build",
     buildingId,
     targetLevel,
-    startedAt: now,
-    completesAt: now + durationMs
+    ...createJobTimestamps(durationMs)
   });
 
   setCampFeedback(`${def.label} ${building.level === 0 ? "construction" : "upgrade"} started. Ready in ${formatDuration(durationMs)}.`, "success");
@@ -2243,7 +2286,6 @@ function trainTroop(troopType) {
     return;
   }
 
-  const now = performance.now();
   const durationMs = getTrainDurationMs(troopType);
 
   state.gold -= def.cost;
@@ -2252,8 +2294,7 @@ function trainTroop(troopType) {
     kind: "train",
     troopType,
     population: popCost,
-    startedAt: now,
-    completesAt: now + durationMs
+    ...createJobTimestamps(durationMs)
   });
 
   setCampFeedback(`Training ${def.label}. Ready in ${formatDuration(durationMs)}.`, "success");
