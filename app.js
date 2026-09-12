@@ -1434,19 +1434,40 @@ function updateWaveTiming(now) {
   }
 }
 
-function isEnemyEngagedWithTroops(enemy) {
+function findNearestTroopForEnemy(enemy) {
+  let nearest = null;
+  let nearestDistance = Infinity;
+
   for (const troop of combat.troops) {
+    if (troop.health <= 0) continue;
     const dist = distance(enemy.x, enemy.y, troop.x, troop.y);
-    if (dist <= troop.range) return true;
+    if (dist < nearestDistance) {
+      nearest = troop;
+      nearestDistance = dist;
+    }
   }
-  return false;
+
+  if (!nearest) return null;
+  return { troop: nearest, dist: nearestDistance };
 }
 
 function updateEnemies(deltaSeconds) {
   const attackers = [];
 
   for (const enemy of combat.enemies) {
-    if (isEnemyEngagedWithTroops(enemy)) continue;
+    const troopTarget = findNearestTroopForEnemy(enemy);
+    const chaseRange = troopTarget ? Math.max(troopTarget.troop.range, MELEE_CONTACT_RANGE) : 0;
+
+    if (troopTarget && troopTarget.dist <= chaseRange) {
+      if (troopTarget.dist > MELEE_CONTACT_RANGE) {
+        const dx = troopTarget.troop.x - enemy.x;
+        const dy = troopTarget.troop.y - enemy.y;
+        const step = enemy.speed * deltaSeconds;
+        enemy.x += (dx / troopTarget.dist) * step;
+        enemy.y += (dy / troopTarget.dist) * step;
+      }
+      continue;
+    }
 
     const dx = CASTLE_TARGET.x - enemy.x;
     const dy = CASTLE_TARGET.y - enemy.y;
