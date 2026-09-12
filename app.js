@@ -2122,13 +2122,240 @@ function setCampFeedback(message, type) {
   }
 }
 
+function renderFarmIcon(level) {
+  const grand = level > 3;
+  const fence = level >= 2;
+  const crops = level >= 3;
+
+  return `
+    <svg class="building-icon" viewBox="0 0 64 48" aria-hidden="true">
+      <rect x="0" y="39" width="64" height="9" fill="#3f6212"/>
+      <rect x="0" y="39" width="64" height="2" fill="#4d7c0f"/>
+      ${crops ? `
+        <g fill="#65a30d">
+          <rect x="2" y="41" width="2" height="5" rx="1"/>
+          <rect x="6" y="42" width="2" height="4" rx="1"/>
+          <rect x="56" y="41" width="2" height="5" rx="1"/>
+          <rect x="60" y="42" width="2" height="4" rx="1"/>
+        </g>
+        <g fill="#facc15">
+          <circle cx="3" cy="41" r="1.2"/>
+          <circle cx="57" cy="41" r="1.2"/>
+        </g>
+      ` : ""}
+      <rect x="5" y="17" width="10" height="23" rx="1.5" fill="${grand ? "#e2e8f0" : "#cbd5e1"}"/>
+      <rect x="5" y="17" width="10" height="23" rx="1.5" fill="none" stroke="#64748b" stroke-width="0.8"/>
+      <path d="M4.5 17.5 Q10 11 15.5 17.5 Z" fill="${grand ? "#fbbf24" : "#94a3b8"}"/>
+      <rect x="7" y="24" width="6" height="1" fill="#94a3b8"/>
+      <rect x="7" y="30" width="6" height="1" fill="#94a3b8"/>
+      <polygon points="17,23 36,10 55,23" fill="${grand ? "#f59e0b" : "#7f1d1d"}"/>
+      <polygon points="17,23 36,10 55,23" fill="none" stroke="${grand ? "#b45309" : "#581c1c"}" stroke-width="1"/>
+      <rect x="20" y="22" width="32" height="18" fill="${grand ? "#dc2626" : "#b91c1c"}"/>
+      <rect x="20" y="22" width="32" height="18" fill="none" stroke="#7f1d1d" stroke-width="0.8"/>
+      <polygon points="33,13 39,13 36,10" fill="${grand ? "#fde047" : "#991b1b"}"/>
+      <rect x="33" y="16" width="6" height="5" rx="0.6" fill="#fbbf24" stroke="#7c2d12" stroke-width="0.7"/>
+      <rect x="30" y="28" width="12" height="12" fill="#7c2d12"/>
+      <path d="M30 28 L42 40 M42 28 L30 40" stroke="#fef3c7" stroke-width="1.1"/>
+      <rect x="30" y="28" width="12" height="12" fill="none" stroke="#fef3c7" stroke-width="1"/>
+      <rect x="23" y="27" width="5" height="5" rx="0.6" fill="#fde68a" stroke="#7f1d1d" stroke-width="0.6"/>
+      <rect x="44" y="27" width="5" height="5" rx="0.6" fill="#fde68a" stroke="#7f1d1d" stroke-width="0.6"/>
+      ${fence ? `
+        <g stroke="#a16207" stroke-width="1.2" stroke-linecap="round">
+          <path d="M2 40 L2 35 M7 40 L7 36 M12 40 L12 35"/>
+          <path d="M1 37 L13 37"/>
+          <path d="M52 40 L52 35 M57 40 L57 36 M62 40 L62 35"/>
+          <path d="M51 37 L63 37"/>
+        </g>
+      ` : ""}
+      ${grand ? `
+        <g class="farm-windmill">
+          <rect x="55.8" y="15" width="3.4" height="25" fill="#a16207" stroke="#78350f" stroke-width="0.6"/>
+          <g class="farm-blades">
+            <rect x="56.6" y="8" width="1.8" height="7" rx="0.9" fill="#fef3c7"/>
+            <rect x="56.6" y="15" width="1.8" height="7" rx="0.9" fill="#fde68a"/>
+            <rect x="50.5" y="14.1" width="7" height="1.8" rx="0.9" fill="#fef3c7"/>
+            <rect x="57.5" y="14.1" width="7" height="1.8" rx="0.9" fill="#fde68a"/>
+            <circle cx="57.5" cy="15" r="1.5" fill="#b45309"/>
+          </g>
+        </g>
+        <g class="farm-flag">
+          <rect x="35.4" y="2" width="1.2" height="9" fill="#fef3c7"/>
+          <polygon points="36.6,2.5 44,5 36.6,7.5" fill="#fbbf24"/>
+        </g>
+        <g fill="#fde047" opacity="0.9">
+          <circle cx="12" cy="8" r="1"/>
+          <circle cx="24" cy="5" r="0.8"/>
+          <circle cx="48" cy="7" r="0.9"/>
+        </g>
+      ` : ""}
+    </svg>
+  `;
+}
+
+function renderBarracksIcon(level) {
+  return `
+    <svg class="building-icon" viewBox="0 0 64 48" aria-hidden="true">
+      <rect x="0" y="39" width="64" height="9" fill="#475569"/>
+      <rect x="0" y="39" width="64" height="2" fill="#64748b"/>
+      <rect x="10" y="16" width="44" height="24" fill="#94a3b8" stroke="#334155" stroke-width="1"/>
+      <g fill="#64748b">
+        <rect x="10" y="22" width="44" height="1"/>
+        <rect x="10" y="29" width="44" height="1"/>
+        <rect x="18" y="16" width="1" height="24"/>
+        <rect x="32" y="16" width="1" height="24"/>
+        <rect x="45" y="16" width="1" height="24"/>
+      </g>
+      <g fill="#cbd5e1" stroke="#334155" stroke-width="0.8">
+        <rect x="8" y="11" width="7" height="6"/>
+        <rect x="19" y="11" width="7" height="6"/>
+        <rect x="30" y="11" width="7" height="6"/>
+        <rect x="41" y="11" width="7" height="6"/>
+        <rect x="49" y="11" width="7" height="6"/>
+      </g>
+      <rect x="6" y="14" width="8" height="26" fill="#cbd5e1" stroke="#334155" stroke-width="1"/>
+      <rect x="50" y="14" width="8" height="26" fill="#cbd5e1" stroke="#334155" stroke-width="1"/>
+      <rect x="27" y="26" width="10" height="14" rx="5" fill="#1e293b" stroke="#0f172a" stroke-width="0.8"/>
+      <rect x="31.4" y="30" width="1.2" height="7" fill="#64748b"/>
+      <g fill="#1e293b">
+        <rect x="9" y="19" width="3" height="5" rx="1.5"/>
+        <rect x="52" y="19" width="3" height="5" rx="1.5"/>
+      </g>
+      <rect x="19" y="22" width="4" height="6" rx="2" fill="#1e293b"/>
+      <rect x="41" y="22" width="4" height="6" rx="2" fill="#1e293b"/>
+      ${level >= 2 ? `
+        <g>
+          <rect x="20" y="30" width="8" height="10" fill="#b91c1c" stroke="#7f1d1d" stroke-width="0.6"/>
+          <polygon points="20,40 24,37 28,40" fill="#0f172a" opacity="0.35"/>
+          <rect x="36" y="30" width="8" height="10" fill="#b91c1c" stroke="#7f1d1d" stroke-width="0.6"/>
+          <polygon points="36,40 40,37 44,40" fill="#0f172a" opacity="0.35"/>
+        </g>
+      ` : ""}
+      ${level >= 3 ? `
+        <g>
+          <rect x="31.2" y="2" width="1.6" height="10" fill="#94a3b8"/>
+          <polygon points="32.8,2.5 41,5 32.8,7.5" fill="#dc2626"/>
+          <g transform="translate(32,20)">
+            <path d="M-6 -2 L0 -6 L6 -2 L6 3 L0 7 L-6 3 Z" fill="#fbbf24" stroke="#78350f" stroke-width="0.8"/>
+            <path d="M0 -4 L0 5 M-3.5 0 L3.5 0" stroke="#78350f" stroke-width="1"/>
+          </g>
+        </g>
+      ` : ""}
+    </svg>
+  `;
+}
+
+function renderStablesIcon(level) {
+  return `
+    <svg class="building-icon" viewBox="0 0 64 48" aria-hidden="true">
+      <rect x="0" y="39" width="64" height="9" fill="#57534e"/>
+      <rect x="0" y="39" width="64" height="2" fill="#78716c"/>
+      <polygon points="6,22 32,9 58,22" fill="#78350f" stroke="#451a03" stroke-width="1"/>
+      <rect x="9" y="22" width="46" height="18" fill="#92400e" stroke="#451a03" stroke-width="1"/>
+      <g stroke="#78350f" stroke-width="0.8">
+        <path d="M9 27 L55 27"/>
+        <path d="M9 33 L55 33"/>
+      </g>
+      <g fill="#451a03">
+        <path d="M14 40 L14 28 A6 6 0 0 1 26 28 L26 40 Z"/>
+        <path d="M38 40 L38 28 A6 6 0 0 1 50 28 L50 40 Z"/>
+      </g>
+      <g fill="#78350f">
+        <rect x="14" y="34" width="12" height="1.2"/>
+        <rect x="38" y="34" width="12" height="1.2"/>
+      </g>
+      <g fill="#e7e5e4">
+        <path d="M18 40 L18 33 q2 -3 4 -1 l0 8 Z"/>
+        <circle cx="20" cy="31" r="2.6"/>
+        <polygon points="18.2,29.4 17.6,26.8 19.4,28.4"/>
+        <polygon points="21.8,29.4 22.4,26.8 20.6,28.4"/>
+      </g>
+      <circle cx="21" cy="30.6" r="0.5" fill="#1c1917"/>
+      <path d="M17.6 31.6 q2.6 1.6 5 0" stroke="#a8a29e" stroke-width="0.5" fill="none"/>
+      <rect x="29" y="15" width="6" height="5" rx="0.6" fill="#fbbf24" stroke="#451a03" stroke-width="0.7"/>
+      ${level >= 2 ? `
+        <g>
+          <circle cx="56" cy="36" r="4" fill="#eab308" stroke="#a16207" stroke-width="0.8"/>
+          <path d="M52.5 35 L59.5 35 M52.5 37 L59.5 37" stroke="#a16207" stroke-width="0.6"/>
+          <circle cx="6" cy="37" r="3" fill="#eab308" stroke="#a16207" stroke-width="0.8"/>
+        </g>
+      ` : ""}
+      ${level >= 3 ? `
+        <g stroke="#a16207" stroke-width="1.2" stroke-linecap="round">
+          <path d="M2 40 L2 33 M8 40 L8 34"/>
+          <path d="M1 35.5 L9 35.5"/>
+          <path d="M58 40 L58 33 M63 40 L63 34"/>
+        </g>
+        <polygon points="30,10 34,10 32,6" fill="#dc2626"/>
+      ` : ""}
+    </svg>
+  `;
+}
+
+function renderArcheryIcon(level) {
+  return `
+    <svg class="building-icon" viewBox="0 0 64 48" aria-hidden="true">
+      <rect x="0" y="39" width="64" height="9" fill="#166534"/>
+      <rect x="0" y="39" width="64" height="2" fill="#15803d"/>
+      <rect x="4" y="20" width="18" height="20" fill="#14532d" stroke="#052e16" stroke-width="1"/>
+      <polygon points="2,20 13,12 24,20" fill="#166534" stroke="#052e16" stroke-width="1"/>
+      <rect x="9" y="28" width="8" height="12" fill="#052e16"/>
+      <rect x="30" y="33" width="4" height="7" fill="#78350f"/>
+      <circle cx="32" cy="24" r="12" fill="#f8fafc" stroke="#334155" stroke-width="1"/>
+      <circle cx="32" cy="24" r="9" fill="#ef4444"/>
+      <circle cx="32" cy="24" r="6" fill="#f8fafc"/>
+      <circle cx="32" cy="24" r="3.2" fill="#ef4444"/>
+      <circle cx="32" cy="24" r="1.2" fill="#fde047"/>
+      <g>
+        <rect x="34" y="21.4" width="14" height="1.2" rx="0.6" fill="#a16207" transform="rotate(-12 34 22)"/>
+        <polygon points="47,17.6 51,19.2 47,20.6" fill="#e2e8f0" transform="rotate(-12 34 22)"/>
+      </g>
+      ${level >= 2 ? `
+        <g>
+          <path d="M52 14 Q60 24 52 34" fill="none" stroke="#78350f" stroke-width="2"/>
+          <path d="M52 14 L52 34" stroke="#e2e8f0" stroke-width="0.8"/>
+          <rect x="49" y="23" width="12" height="1.1" rx="0.5" fill="#a16207"/>
+          <polygon points="60,22 63,23.5 60,25" fill="#e2e8f0"/>
+        </g>
+      ` : ""}
+      ${level >= 3 ? `
+        <g>
+          <rect x="24" y="34" width="16" height="2" rx="1" fill="#78350f"/>
+          <g fill="#a16207">
+            <rect x="26" y="27" width="1" height="8"/>
+            <rect x="30" y="26" width="1" height="9"/>
+            <rect x="37" y="27" width="1" height="8"/>
+          </g>
+          <g fill="#e2e8f0">
+            <polygon points="25.5,25.6 27.5,25.6 26.5,23.4"/>
+            <polygon points="29.5,24.6 31.5,24.6 30.5,22.4"/>
+            <polygon points="36.5,25.6 38.5,25.6 37.5,23.4"/>
+          </g>
+          <rect x="10" y="24" width="6" height="4" rx="0.6" fill="#fbbf24" stroke="#052e16" stroke-width="0.6"/>
+        </g>
+      ` : ""}
+    </svg>
+  `;
+}
+
+function renderBuildingIcon(buildingId, level) {
+  if (level <= 0) return "";
+  if (buildingId === "farm") return renderFarmIcon(level);
+  if (buildingId === "barracks") return renderBarracksIcon(level);
+  if (buildingId === "stables") return renderStablesIcon(level);
+  if (buildingId === "archery") return renderArcheryIcon(level);
+  return "";
+}
+
 function renderCastleBuildingSlot(buildingId) {
   const def = BUILDING_DEFS[buildingId];
   const building = state.buildings[buildingId];
   const level = building.level;
   const activeJob = getActiveBuildJob(buildingId);
   const selectedClass = state.selectedBuilding === buildingId ? " is-selected" : "";
-  const buildingClass = level > 0 ? ` castle-building-built castle-building-${buildingId}-lv-${level}` : " castle-building-empty";
+  const grandClass = buildingId === "farm" && level > 3 ? " castle-building-farm-grand" : "";
+  const buildingClass = level > 0
+    ? ` castle-building-built castle-building-${buildingId}-lv-${level}${grandClass}`
+    : " castle-building-empty";
   const buildingStateClass = activeJob ? " is-building" : "";
   const slotClass = BUILDING_SLOT_LAYOUT[buildingId];
   const label = level > 0 ? def.label : `+ ${def.label}`;
@@ -2146,7 +2373,7 @@ function renderCastleBuildingSlot(buildingId) {
       data-building-slot="${buildingId}"
       aria-label="${def.label}"
     >
-      <span class="castle-building-visual" aria-hidden="true"></span>
+      <span class="castle-building-visual" aria-hidden="true">${renderBuildingIcon(buildingId, level)}</span>
       <span class="castle-building-label">${label}</span>
       ${badge}
       ${progress}

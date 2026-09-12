@@ -1926,10 +1926,48 @@ button {
 
 .castle-building-visual {
   flex: 1 1 auto;
-  width: 70%;
-  min-height: 28%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 92%;
+  min-height: 30%;
   margin-bottom: 2px;
   pointer-events: none;
+}
+
+.building-icon {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+
+.castle-building-farm-grand .building-icon {
+  filter:
+    drop-shadow(0 0 8px rgba(250, 204, 21, 0.55))
+    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.castle-building-farm-grand {
+  border-color: rgba(250, 204, 21, 0.8);
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.28);
+}
+
+.castle-building-farm-grand .castle-building-badge {
+  background: linear-gradient(180deg, #fbbf24, #b45309);
+  color: #1c1917;
+}
+
+.farm-blades {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: farmWindmillSpin 5s linear infinite;
+}
+
+@keyframes farmWindmillSpin {
+  to { transform: rotate(360deg); }
 }
 
 .castle-building-empty .castle-building-visual {
@@ -1940,66 +1978,9 @@ button {
   background: rgba(251, 191, 36, 0.08);
 }
 
-.castle-building-farm-lv-1 .castle-building-visual,
-.castle-building-farm-lv-2 .castle-building-visual,
-.castle-building-farm-lv-3 .castle-building-visual {
-  border-radius: 3px 3px 2px 2px;
-  background:
-    linear-gradient(180deg, #a16207 0 28%, #713f12 28% 100%);
-  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.15);
+.castle-building-built .castle-building-visual {
+  min-height: 46%;
 }
-
-.castle-building-farm-lv-2 .castle-building-visual {
-  min-height: 38%;
-}
-
-.castle-building-farm-lv-3 .castle-building-visual {
-  min-height: 48%;
-  background:
-    linear-gradient(180deg, #ca8a04 0 22%, #a16207 22% 100%);
-}
-
-[class*="castle-building-farm-lv-"]:not(.castle-building-farm-lv-1):not(.castle-building-farm-lv-2):not(.castle-building-farm-lv-3):not(.castle-building-empty) .castle-building-visual {
-  min-height: 58%;
-  background:
-    linear-gradient(180deg, #fde047 0 18%, #ca8a04 18% 52%, #713f12 52% 100%);
-  box-shadow:
-    inset 0 -8px 0 rgba(0, 0, 0, 0.18),
-    0 0 14px rgba(250, 204, 21, 0.28);
-}
-
-.castle-building-barracks-lv-1 .castle-building-visual,
-.castle-building-barracks-lv-2 .castle-building-visual,
-.castle-building-barracks-lv-3 .castle-building-visual {
-  border-radius: 3px;
-  background: linear-gradient(180deg, #94a3b8 0%, #475569 100%);
-  box-shadow: inset 0 0 0 2px #1e293b;
-}
-
-.castle-building-barracks-lv-2 .castle-building-visual { min-height: 36%; }
-.castle-building-barracks-lv-3 .castle-building-visual { min-height: 46%; }
-
-.castle-building-stables-lv-1 .castle-building-visual,
-.castle-building-stables-lv-2 .castle-building-visual,
-.castle-building-stables-lv-3 .castle-building-visual {
-  border-radius: 4px 4px 2px 2px;
-  background: linear-gradient(180deg, #92400e 0 24%, #78350f 24% 100%);
-}
-
-.castle-building-stables-lv-2 .castle-building-visual { min-height: 36%; }
-.castle-building-stables-lv-3 .castle-building-visual { min-height: 46%; }
-
-.castle-building-archery-lv-1 .castle-building-visual,
-.castle-building-archery-lv-2 .castle-building-visual,
-.castle-building-archery-lv-3 .castle-building-visual {
-  border-radius: 2px;
-  background:
-    linear-gradient(90deg, transparent 42%, #854d0e 42% 46%, transparent 46%),
-    linear-gradient(180deg, #166534 0%, #14532d 100%);
-}
-
-.castle-building-archery-lv-2 .castle-building-visual { min-height: 36%; }
-.castle-building-archery-lv-3 .castle-building-visual { min-height: 44%; }
 
 .building-upgrade-panel .military-troop-grid {
   width: 100%;
