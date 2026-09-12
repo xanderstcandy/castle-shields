@@ -325,7 +325,10 @@ const combat = {
   },
   lastSpawnWallAt: 0,
   peaceRegenUsed: 0,
-  lastHudRefresh: 0
+  lastHudRefresh: 0,
+  paused: false,
+  pausedAt: 0,
+  pausedAtWall: 0
 };
 
 let combatLayer = null;
@@ -370,10 +373,23 @@ function createDefaultJobQueue() {
   return [];
 }
 
+function getPauseAwarePerfNow() {
+  return combat.paused ? combat.pausedAt : performance.now();
+}
+
+function getPauseAwareWallNow() {
+  return combat.paused ? combat.pausedAtWall : Date.now();
+}
+
+function getPhaseRemainingMs() {
+  return Math.max(0, combat.phaseEndsAt - getPauseAwarePerfNow());
+}
+
 function createDefaultCombatSave() {
   return {
     waveNumber: 1,
     phase: "peace",
+    phaseRemainingMs: WAVE_PEACE_MS,
     phaseEndTimestamp: Date.now() + WAVE_PEACE_MS,
     lastSpawnWallAt: 0,
     castleHealth: null,
@@ -398,11 +414,33 @@ function createDefaultCombatSave() {
   };
 }
 
+function serializeJobQueue() {
+  const now = getPauseAwareWallNow();
+  return structuredClone(state.jobQueue).map((job) => ({
+    ...job,
+    remainingMs: Math.max(0, (job.completesAtWall ?? now) - now)
+  }));
+}
+
+function rebaseJobQueue() {
+  normalizeJobQueue();
+  const now = Date.now();
+  for (const job of state.jobQueue) {
+    const remaining = job.remainingMs != null
+      ? Math.max(0, job.remainingMs)
+      : Math.max(0, (job.completesAtWall ?? now) - now);
+    job.remainingMs = remaining;
+    job.completesAtWall = now + remaining;
+    job.startedAtWall = now - Math.max(0, (job.durationMs || remaining) - remaining);
+  }
+}
+
 function serializeCombatSave() {
-  const phaseRemainingMs = Math.max(0, combat.phaseEndsAt - performance.now());
+  const phaseRemainingMs = getPhaseRemainingMs();
   return {
     waveNumber: combat.waveNumber,
     phase: combat.phase,
+    phaseRemainingMs,
     phaseEndTimestamp: Date.now() + phaseRemainingMs,
     lastSpawnWallAt: combat.lastSpawnWallAt || 0,
     castleHealth: state.castleHealth,
@@ -416,55 +454,20 @@ function serializeCombatSave() {
   };
 }
 
-function fastForwardCombatSave(saved) {
-  let waveNumber = saved.waveNumber || 1;
-  let phase = saved.phase || "peace";
-  let phaseEndTimestamp = saved.phaseEndTimestamp || Date.now() + WAVE_PEACE_MS;
-  let enemies = structuredClone(saved.enemies || []);
-  let troops = structuredClone(saved.troops || []);
-  let arrows = structuredClone(saved.arrows || []);
-
-  while (phaseEndTimestamp <= Date.now()) {
-    if (phase === "peace") {
-      phase = "attack";
-      phaseEndTimestamp += WAVE_ATTACK_MS;
-      enemies = [];
-      troops = [];
-      arrows = [];
-    } else {
-      phase = "peace";
-      phaseEndTimestamp += WAVE_PEACE_MS;
-      waveNumber += 1;
-      enemies = [];
-      troops = [];
-      arrows = [];
-    }
-  }
-
-  return {
-    ...saved,
-    waveNumber,
-    phase,
-    phaseEndTimestamp,
-    enemies,
-    troops,
-    arrows
-  };
-}
-
 function applyCombatSave(saved) {
-  const progressed = fastForwardCombatSave(saved);
-  const phaseRemainingMs = Math.max(0, progressed.phaseEndTimestamp - Date.now());
+  const phaseRemainingMs = saved.phaseRemainingMs != null
+    ? Math.max(0, saved.phaseRemainingMs)
+    : Math.max(0, (saved.phaseEndTimestamp || Date.now()) - Date.now());
 
-  combat.waveNumber = progressed.waveNumber;
-  combat.phase = progressed.phase;
+  combat.waveNumber = saved.waveNumber || 1;
+  combat.phase = saved.phase || "peace";
   combat.phaseEndsAt = performance.now() + phaseRemainingMs;
-  combat.enemies = progressed.enemies;
-  combat.troops = progressed.troops;
-  combat.arrows = progressed.arrows;
-  combat.nextEnemyId = progressed.nextEnemyId || 1;
-  combat.nextArrowId = progressed.nextArrowId || 1;
-  combat.nextTroopId = progressed.nextTroopId || 1;
+  combat.enemies = structuredClone(saved.enemies || []);
+  combat.troops = structuredClone(saved.troops || []);
+  combat.arrows = structuredClone(saved.arrows || []);
+  combat.nextEnemyId = saved.nextEnemyId || 1;
+  combat.nextArrowId = saved.nextArrowId || 1;
+  combat.nextTroopId = saved.nextTroopId || 1;
   combat.lastFireTimes = {
     nw: 0,
     ne: 0,
@@ -476,19 +479,17 @@ function applyCombatSave(saved) {
     ne: TOWER_IDLE_ANGLES.ne,
     sw: TOWER_IDLE_ANGLES.sw,
     se: TOWER_IDLE_ANGLES.se,
-    ...progressed.towerAimAngles
+    ...saved.towerAimAngles
   };
 
-  if (combat.phase === "attack" && progressed.lastSpawnWallAt) {
-    combat.lastSpawnAt = performance.now() - (Date.now() - progressed.lastSpawnWallAt);
-  } else {
-    combat.lastSpawnAt = 0;
-  }
-
-  combat.lastSpawnWallAt = progressed.lastSpawnWallAt || 0;
+  combat.lastSpawnAt = combat.phase === "attack" ? performance.now() : 0;
+  combat.lastSpawnWallAt = saved.lastSpawnWallAt || 0;
   combat.lastFrameTime = 0;
   combat.peaceRegenUsed = 0;
-  state.castleHealth = progressed.castleHealth ?? getCastleMaxHealth();
+  combat.paused = false;
+  combat.pausedAt = 0;
+  combat.pausedAtWall = 0;
+  state.castleHealth = saved.castleHealth ?? getCastleMaxHealth();
 
   if (state.castleHealth <= 0) {
     handlePlayerDeath(false);
@@ -577,6 +578,10 @@ function getPopulationUsed() {
     used += count * getTroopPopulationCost(troopType);
   }
 
+  for (const troop of combat.troops) {
+    used += getTroopPopulationCost(troop.type);
+  }
+
   for (const job of state.jobQueue) {
     if (job.kind === "train") {
       used += job.population || getTroopPopulationCost(job.troopType);
@@ -584,6 +589,45 @@ function getPopulationUsed() {
   }
 
   return used;
+}
+
+function clampArmyToPopulationCap() {
+  let reserved = 0;
+
+  for (const troop of combat.troops) {
+    reserved += getTroopPopulationCost(troop.type);
+  }
+
+  for (const job of state.jobQueue) {
+    if (job.kind === "train") {
+      reserved += job.population || getTroopPopulationCost(job.troopType);
+    }
+  }
+
+  let armyBudget = getMaxPopulation() - reserved;
+  if (armyBudget < 0) armyBudget = 0;
+
+  let armyUsed = 0;
+  for (const [troopType, count] of Object.entries(state.army)) {
+    armyUsed += count * getTroopPopulationCost(troopType);
+  }
+
+  while (armyUsed > armyBudget) {
+    let removed = false;
+    const troopTypes = Object.keys(TROOP_DEFS).sort(
+      (a, b) => getTroopPopulationCost(b) - getTroopPopulationCost(a)
+    );
+
+    for (const troopType of troopTypes) {
+      if ((state.army[troopType] || 0) <= 0) continue;
+      state.army[troopType] -= 1;
+      armyUsed -= getTroopPopulationCost(troopType);
+      removed = true;
+      break;
+    }
+
+    if (!removed) break;
+  }
 }
 
 function getAvailablePopulation() {
@@ -659,6 +703,7 @@ function createJobTimestamps(durationMs) {
 }
 
 function runJobQueueTick(shouldRender = false) {
+  if (combat.paused) return false;
   tickPeaceRegen(0.25);
   const jobsChanged = processJobQueue(Date.now());
   if (jobsChanged && shouldRender && state.screen === "castle") {
@@ -696,7 +741,7 @@ function clearJobTimeouts() {
 }
 
 function startJobScheduler() {
-  if (jobTimerId) return;
+  if (jobTimerId || combat.paused) return;
   jobTimerId = setInterval(() => runJobQueueTick(false), 250);
   rescheduleAllJobs();
 }
@@ -848,7 +893,7 @@ function render() {
     updateWaveHud();
     applyTowerCrossbowTransforms();
     if (!combat.loopRunning) startCombatLoop(true);
-    startJobScheduler();
+    if (!combat.paused) startJobScheduler();
   }
 }
 
@@ -935,7 +980,11 @@ function ensureAccountCombat(account) {
   }
   if (account.combat.waveNumber === undefined) account.combat.waveNumber = 1;
   if (!account.combat.phase) account.combat.phase = "peace";
-  if (!account.combat.phaseEndTimestamp) account.combat.phaseEndTimestamp = Date.now() + WAVE_PEACE_MS;
+  if (account.combat.phaseRemainingMs == null && account.combat.phaseEndTimestamp) {
+    account.combat.phaseRemainingMs = Math.max(0, account.combat.phaseEndTimestamp - Date.now());
+  }
+  if (account.combat.phaseRemainingMs == null) account.combat.phaseRemainingMs = WAVE_PEACE_MS;
+  if (!account.combat.phaseEndTimestamp) account.combat.phaseEndTimestamp = Date.now() + account.combat.phaseRemainingMs;
   if (!account.combat.enemies) account.combat.enemies = [];
   if (!account.combat.troops) account.combat.troops = [];
   if (!account.combat.arrows) account.combat.arrows = [];
@@ -947,10 +996,8 @@ function ensureAccountCombat(account) {
 }
 
 function processOverdueJobs() {
-  normalizeJobQueue();
-  while (state.jobQueue.some((job) => isJobComplete(job))) {
-    processJobQueue(Date.now());
-  }
+  rebaseJobQueue();
+  processJobQueue(Date.now());
 }
 
 function syncAccountProgress(username) {
@@ -988,13 +1035,14 @@ function syncAccountProgress(username) {
   processOverdueJobs();
   rescheduleAllJobs();
   applyCombatSave(structuredClone(account.combat));
+  clampArmyToPopulationCap();
   account.gold = state.gold;
   account.diamonds = state.diamonds;
   account.towers = structuredClone(state.towers);
   account.castle = structuredClone(state.castle);
   account.buildings = structuredClone(state.buildings);
   account.army = structuredClone(state.army);
-  account.jobQueue = structuredClone(state.jobQueue);
+  account.jobQueue = serializeJobQueue();
   account.nextJobId = state.nextJobId;
   if (state.screen === "castle") {
     account.combat = serializeCombatSave();
@@ -1013,7 +1061,7 @@ function saveAccountProgress(username) {
   accounts[index].castle = structuredClone(state.castle);
   accounts[index].buildings = structuredClone(state.buildings);
   accounts[index].army = structuredClone(state.army);
-  accounts[index].jobQueue = structuredClone(state.jobQueue);
+  accounts[index].jobQueue = serializeJobQueue();
   accounts[index].nextJobId = state.nextJobId;
   if (state.screen === "castle") {
     accounts[index].combat = serializeCombatSave();
@@ -1618,7 +1666,7 @@ function updateWaveHud() {
   const hud = document.querySelector(".wave-hud");
   if (!hud) return;
 
-  const remainingMs = Math.max(0, combat.phaseEndsAt - performance.now());
+  const remainingMs = getPhaseRemainingMs();
   const remainingSec = Math.ceil(remainingMs / 1000);
   const phaseLabel = combat.phase === "attack" ? "Attack" : "Peace";
   const phaseClass = combat.phase === "attack" ? "wave-hud-attack" : "wave-hud-peace";
@@ -1637,6 +1685,7 @@ function updateWaveHud() {
       <span class="castle-health-value">${Math.ceil(state.castleHealth)} / ${maxHealth}</span>
     </div>
     ${regen > 0 ? `<span class="wave-hud-regen">Regen: ${regen}/s</span>` : ""}
+    ${combat.paused ? `<span class="wave-hud-paused">Paused</span>` : ""}
     ${state.castleHealth <= 0 ? `<span class="wave-hud-breach">Game Over</span>` : ""}
   `;
 }
@@ -1654,8 +1703,61 @@ function syncCombatLayer() {
   `;
 }
 
+function pauseGame() {
+  if (combat.paused || state.screen !== "castle") return;
+  combat.paused = true;
+  combat.pausedAt = performance.now();
+  combat.pausedAtWall = Date.now();
+  if (combat.loopFrame) {
+    cancelAnimationFrame(combat.loopFrame);
+    combat.loopFrame = 0;
+  }
+  stopJobScheduler();
+  if (state.username) saveAccountProgress(state.username);
+  updateWaveHud();
+}
+
+function resumeGame() {
+  if (!combat.paused || state.screen !== "castle") return;
+
+  const elapsedPerf = Math.max(0, performance.now() - combat.pausedAt);
+  const elapsedWall = Math.max(0, Date.now() - combat.pausedAtWall);
+
+  combat.phaseEndsAt += elapsedPerf;
+  if (combat.lastSpawnAt) combat.lastSpawnAt += elapsedPerf;
+  for (const towerId of TOWER_IDS) {
+    if (combat.lastFireTimes[towerId]) combat.lastFireTimes[towerId] += elapsedPerf;
+  }
+  for (const troop of combat.troops) {
+    if (troop.lastAttackAt) troop.lastAttackAt += elapsedPerf;
+  }
+  for (const job of state.jobQueue) {
+    if (job.completesAtWall != null) job.completesAtWall += elapsedWall;
+    if (job.startedAtWall != null) job.startedAtWall += elapsedWall;
+  }
+
+  combat.paused = false;
+  combat.pausedAt = 0;
+  combat.pausedAtWall = 0;
+  combat.lastFrameTime = 0;
+  startJobScheduler();
+  if (combat.loopRunning) {
+    combat.loopFrame = requestAnimationFrame(combatLoop);
+  } else {
+    startCombatLoop(true);
+  }
+  if (state.username) saveAccountProgress(state.username);
+  updateWaveHud();
+}
+
+function syncPresencePause() {
+  if (state.screen !== "castle") return;
+  if (document.hidden) pauseGame();
+  else resumeGame();
+}
+
 function combatLoop(now) {
-  if (!combat.loopRunning) return;
+  if (!combat.loopRunning || combat.paused) return;
 
   const wallNow = Date.now();
   const jobsChanged = processJobQueue(wallNow);
@@ -1689,6 +1791,10 @@ function startCombatLoop(resume = false) {
     startWaveCycle(performance.now());
   }
   combat.lastFrameTime = 0;
+  if (document.hidden) {
+    pauseGame();
+    return;
+  }
   combat.loopFrame = requestAnimationFrame(combatLoop);
 }
 
@@ -1714,6 +1820,9 @@ function resetCombatState() {
   combat.nextArrowId = 1;
   combat.nextTroopId = 1;
   combat.lastFrameTime = 0;
+  combat.paused = false;
+  combat.pausedAt = 0;
+  combat.pausedAtWall = 0;
   combat.towerAimAngles = {
     nw: TOWER_IDLE_ANGLES.nw,
     ne: TOWER_IDLE_ANGLES.ne,
@@ -2017,8 +2126,8 @@ function renderTroopTrainCard(troopType, troopDef) {
       </div>
       <p>HP ${troopDef.health} · DMG ${troopDef.damage} · Pop ${popCost}</p>
       <p class="military-troop-owned">Ready: ${owned}${training ? " · training" : ""}</p>
-      <button class="button secondary" type="button" data-action="train-troop" data-troop-type="${troopType}" ${unlocked && canAffordPop && !buildingBusy ? "" : "disabled"}>
-        Train (${troopDef.cost} gold · ${trainDuration})
+      <button class="button secondary" type="button" data-action="train-troop" data-troop-type="${troopType}" ${unlocked && canAffordPop && !buildingBusy ? "" : "disabled"} title="${canAffordPop ? "" : `Needs ${popCost} free population`}">
+        Train (${troopDef.cost} gold · ${trainDuration}${popCost > 1 ? ` · ${popCost} pop` : ""})
       </button>
     </div>
   `;
@@ -2669,6 +2778,16 @@ app.addEventListener("submit", (event) => {
     enterCastle(username);
   }
 });
+
+document.addEventListener("visibilitychange", syncPresencePause);
+window.addEventListener("pagehide", () => {
+  if (state.screen === "castle") pauseGame();
+});
+window.addEventListener("pageshow", syncPresencePause);
+window.addEventListener("blur", () => {
+  if (state.screen === "castle") pauseGame();
+});
+window.addEventListener("focus", syncPresencePause);
 
 render();
 
