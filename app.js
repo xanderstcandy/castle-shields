@@ -24,6 +24,8 @@ const TOWER_NAMES = {
 
 const WAVE_PEACE_MS = 10000;
 const WAVE_ATTACK_MS = 60000;
+const BOSS_WAVE_INTERVAL = 15;
+const BOSS_WAVE_ATTACK_MS = 90000;
 const SPAWN_INTERVAL_MS = 3000;
 const PEACE_REGEN_CAP_RATIO = 0.1;
 const CASTLE_TARGET = { x: 50, y: 27 };
@@ -212,6 +214,20 @@ const ENEMY_DEFS = {
     gold: 48,
     diamonds: 2,
     diamondMax: 3
+  },
+  siege_warlord: {
+    label: "Siege Warlord",
+    badge: "Boss",
+    color: "#991b1b",
+    scale: 1.65,
+    shape: "horned",
+    minWave: 999,
+    spawnWeight: 0,
+    health: 420,
+    damage: 22,
+    speed: 4.2,
+    gold: 80,
+    diamonds: 4
   }
 };
 
@@ -229,7 +245,8 @@ const BUILDING_DEFS = {
   farm: {
     label: "Farm",
     buildCost: 75,
-    desc: "Feeds your realm and adds +5 population capacity per level."
+    maxLevel: 15,
+    desc: "Feeds your realm and adds +5 population capacity per level. Max level 15."
   },
   barracks: {
     label: "Barracks",
@@ -560,6 +577,12 @@ function dismissGameOver() {
   }
   refreshCombatHud();
   render();
+}
+
+function getMaxBuildingLevel(buildingId) {
+  const def = BUILDING_DEFS[buildingId];
+  if (def?.maxLevel != null) return def.maxLevel;
+  return MAX_BUILDING_LEVEL;
 }
 
 function getMaxPopulation() {
@@ -1114,7 +1137,43 @@ function getWaveMultiplier(wave) {
   return 1 + (wave - 1) * 0.03;
 }
 
+function isBossWave(waveNumber = combat.waveNumber) {
+  return waveNumber > 0 && waveNumber % BOSS_WAVE_INTERVAL === 0;
+}
+
+function getBossTier(waveNumber = combat.waveNumber) {
+  return Math.max(1, Math.floor(waveNumber / BOSS_WAVE_INTERVAL));
+}
+
+function getBossStats(waveNumber = combat.waveNumber) {
+  const tier = getBossTier(waveNumber);
+  const waveMultiplier = getWaveMultiplier(waveNumber);
+  const tierHealthMult = 1 + (tier - 1) * 0.85;
+  const tierDamageMult = 1 + (tier - 1) * 0.4;
+  const tierSpeedMult = 1 + (tier - 1) * 0.06;
+  const def = ENEMY_DEFS.siege_warlord;
+
+  return {
+    health: Math.max(
+      1,
+      Math.round(def.health * tierHealthMult * waveMultiplier * ENEMY_STAT_MULTIPLIER * 2.8)
+    ),
+    damage: Math.max(
+      1,
+      Math.round(def.damage * tierDamageMult * waveMultiplier * ENEMY_STAT_MULTIPLIER)
+    ),
+    speed: def.speed * tierSpeedMult * ENEMY_SPEED_MULTIPLIER,
+    gold: Math.round(def.gold * tier * waveMultiplier),
+    diamonds: Math.min(16, def.diamonds + tier * 2),
+    label: tier === 1 ? def.label : `${def.label} ${tier}`,
+    badge: `Boss ${tier}`,
+    scale: def.scale + (tier - 1) * 0.1,
+    color: def.color
+  };
+}
+
 function pickEnemyType(wave) {
+  if (isBossWave(wave)) return "siege_warlord";
   const pool = Object.entries(ENEMY_DEFS).flatMap(([type, def]) => {
     if (wave < (def.minWave || 1)) return [];
     return Array(def.spawnWeight || 1).fill(type);
@@ -1180,21 +1239,51 @@ function renderHumanoidSvg(def) {
 function renderEnemyUnit(enemy) {
   const def = ENEMY_DEFS[enemy.type];
   const hpPercent = Math.max(8, (enemy.health / enemy.maxHealth) * 100);
+  const label = enemy.label || def.label;
+  const badge = enemy.badge || def.badge;
+  const color = enemy.color || def.color;
+  const scale = enemy.scale || def.scale;
+  const bossClass = enemy.isBoss ? " combat-enemy-boss" : "";
 
   return `
     <div
-      class="combat-enemy combat-enemy-${enemy.type} combat-enemy-shape-${def.shape}"
-      style="left:${enemy.x}%;top:${enemy.y}%;--enemy-color:${def.color};--enemy-scale:${def.scale};"
-      title="${escapeHtml(enemy.label)} · DMG ${enemy.damage} · HP ${enemy.health}"
+      class="combat-enemy combat-enemy-${enemy.type} combat-enemy-shape-${def.shape}${bossClass}"
+      style="left:${enemy.x}%;top:${enemy.y}%;--enemy-color:${color};--enemy-scale:${scale};"
+      title="${escapeHtml(label)} · DMG ${enemy.damage} · HP ${Math.ceil(enemy.health)}"
     >
       ${renderHumanoidSvg(def)}
-      <span class="combat-enemy-badge">${escapeHtml(def.badge)}</span>
+      <span class="combat-enemy-badge">${escapeHtml(badge)}</span>
       <span class="combat-enemy-hp"><span style="width:${hpPercent}%"></span></span>
     </div>
   `;
 }
 
+function spawnBoss() {
+  const stats = getBossStats();
+  const def = ENEMY_DEFS.siege_warlord;
+
+  combat.enemies.push({
+    id: combat.nextEnemyId++,
+    type: "siege_warlord",
+    label: stats.label,
+    badge: stats.badge,
+    color: stats.color,
+    scale: stats.scale,
+    isBoss: true,
+    bossTier: getBossTier(),
+    health: stats.health,
+    maxHealth: stats.health,
+    damage: stats.damage,
+    speed: stats.speed,
+    gold: stats.gold,
+    diamonds: stats.diamonds,
+    x: 50,
+    y: 78
+  });
+}
+
 function spawnEnemy() {
+  if (isBossWave()) return;
   const tree = BOTTOM_HALF_TREES[Math.floor(Math.random() * BOTTOM_HALF_TREES.length)];
   const type = pickEnemyType(combat.waveNumber);
   const def = ENEMY_DEFS[type];
@@ -1320,12 +1409,21 @@ function startWaveCycle(now) {
 }
 
 function beginAttackPhase(now) {
+  const bossWave = isBossWave();
   combat.phase = "attack";
-  combat.phaseEndsAt = now + WAVE_ATTACK_MS;
+  combat.phaseEndsAt = now + (bossWave ? BOSS_WAVE_ATTACK_MS : WAVE_ATTACK_MS);
   combat.lastSpawnAt = now;
   combat.lastSpawnWallAt = Date.now();
   combat.peaceRegenUsed = 0;
   deployArmyOnAttack();
+
+  if (bossWave) {
+    spawnBoss();
+    setCampFeedback(
+      `${getBossStats().label} marches on your castle. Defeat the boss to survive wave ${combat.waveNumber}.`,
+      "error"
+    );
+  }
 }
 
 function endAttackPhase(now) {
@@ -1470,11 +1568,18 @@ function updateWaveTiming(now) {
   }
 
   if (combat.phase === "attack") {
+    if (isBossWave() && combat.enemies.length === 0) {
+      setCampFeedback(`Boss defeated on wave ${combat.waveNumber}. The realm survives another siege.`, "success");
+      endAttackPhase(now);
+      return;
+    }
+
     if (now >= combat.phaseEndsAt) {
       endAttackPhase(now);
       return;
     }
-    if (now - combat.lastSpawnAt >= SPAWN_INTERVAL_MS) {
+
+    if (!isBossWave() && now - combat.lastSpawnAt >= SPAWN_INTERVAL_MS) {
       spawnEnemy();
       combat.lastSpawnAt = now;
       combat.lastSpawnWallAt = Date.now();
@@ -1668,17 +1773,20 @@ function updateWaveHud() {
 
   const remainingMs = getPhaseRemainingMs();
   const remainingSec = Math.ceil(remainingMs / 1000);
-  const phaseLabel = combat.phase === "attack" ? "Attack" : "Peace";
+  const bossWave = isBossWave();
+  const phaseLabel = combat.phase === "attack"
+    ? (bossWave ? "Boss" : "Attack")
+    : (bossWave ? "Boss Soon" : "Peace");
   const phaseClass = combat.phase === "attack" ? "wave-hud-attack" : "wave-hud-peace";
   const maxHealth = getCastleMaxHealth();
   const healthPercent = Math.max(0, Math.min(100, (state.castleHealth / maxHealth) * 100));
   const regen = getCastleRegenPerSecond();
 
-  hud.className = `wave-hud ${phaseClass}`;
+  hud.className = `wave-hud ${phaseClass}${bossWave ? " wave-hud-boss" : ""}`;
   hud.innerHTML = `
-    <span class="wave-hud-title">Wave ${combat.waveNumber}</span>
+    <span class="wave-hud-title">${bossWave ? `Boss Wave ${combat.waveNumber}` : `Wave ${combat.waveNumber}`}</span>
     <span class="wave-hud-phase">${phaseLabel}: ${remainingSec}s</span>
-    <span class="wave-hud-count">${combat.enemies.length} enemies · ${combat.troops.length} troops</span>
+    <span class="wave-hud-count">${bossWave ? `${combat.enemies.length} boss · tier ${getBossTier()}` : `${combat.enemies.length} enemies`} · ${combat.troops.length} troops</span>
     <div class="castle-health-bar">
       <span class="castle-health-label">Castle HP</span>
       <div class="castle-health-track"><span class="castle-health-fill" style="width:${healthPercent}%"></span></div>
@@ -2064,14 +2172,15 @@ function renderBuildingPanel() {
   const buildingMessage = state.buildingMessage
     ? `<p class="message ${state.buildingMessageType === "error" ? "error" : "success"}">${escapeHtml(state.buildingMessage)}</p>`
     : `<p class="message"></p>`;
+  const maxLevel = getMaxBuildingLevel(buildingId);
   const upgradeLabel = level === 0
     ? `Build (${upgradeCost} gold · ${buildDuration})`
-    : level >= MAX_BUILDING_LEVEL
+    : level >= maxLevel
       ? "Max Level"
       : `Upgrade to Lv ${level + 1} (${upgradeCost} gold · ${buildDuration})`;
   const troops = Object.entries(TROOP_DEFS).filter(([, troopDef]) => troopDef.building === buildingId);
   const extraInfo = buildingId === "farm"
-    ? `<p class="military-farm-pop">+${POPULATION_PER_FARM_LEVEL} population per level · cap ${getMaxPopulation()}</p>`
+    ? `<p class="military-farm-pop">+${POPULATION_PER_FARM_LEVEL} population per level · max level ${maxLevel} · cap ${getMaxPopulation()}</p>`
     : buildingId === "archery"
       ? `<p class="military-farm-pop">Upgrade with gold · +4 tower range per level · current range ${getTowerRange()}</p>`
       : "";
@@ -2087,7 +2196,7 @@ function renderBuildingPanel() {
       <div class="stat-grid">
         <div class="stat">
           <span>Level</span>
-          <strong>${level} / ${MAX_BUILDING_LEVEL}</strong>
+          <strong>${level} / ${maxLevel}</strong>
         </div>
         <div class="stat">
           <span>Population</span>
@@ -2098,7 +2207,7 @@ function renderBuildingPanel() {
       ${jobProgress}
       ${buildingMessage}
       <div class="button-row vertical">
-        <button class="button" type="button" data-action="upgrade-building" data-building-id="${buildingId}" ${level >= MAX_BUILDING_LEVEL || activeJob ? "disabled" : ""}>
+        <button class="button" type="button" data-action="upgrade-building" data-building-id="${buildingId}" ${level >= maxLevel || activeJob ? "disabled" : ""}>
           ${activeJob ? "Building..." : upgradeLabel}
         </button>
         ${troopSection}
@@ -2449,7 +2558,7 @@ function upgradeBuilding(buildingId) {
   const def = BUILDING_DEFS[buildingId];
   const cost = getBuildingUpgradeCost(buildingId);
 
-  if (building.level >= MAX_BUILDING_LEVEL) {
+  if (building.level >= getMaxBuildingLevel(buildingId)) {
     setCampFeedback(`${def.label} is fully upgraded.`, "error");
     render();
     return;

@@ -1959,6 +1959,15 @@ button {
     linear-gradient(180deg, #ca8a04 0 22%, #a16207 22% 100%);
 }
 
+[class*="castle-building-farm-lv-"]:not(.castle-building-farm-lv-1):not(.castle-building-farm-lv-2):not(.castle-building-farm-lv-3):not(.castle-building-empty) .castle-building-visual {
+  min-height: 58%;
+  background:
+    linear-gradient(180deg, #fde047 0 18%, #ca8a04 18% 52%, #713f12 52% 100%);
+  box-shadow:
+    inset 0 -8px 0 rgba(0, 0, 0, 0.18),
+    0 0 14px rgba(250, 204, 21, 0.28);
+}
+
 .castle-building-barracks-lv-1 .castle-building-visual,
 .castle-building-barracks-lv-2 .castle-building-visual,
 .castle-building-barracks-lv-3 .castle-building-visual {
@@ -2492,6 +2501,33 @@ button {
 .combat-enemy-brute { --enemy-color: #475569; }
 .combat-enemy-fiend { --enemy-color: #dc2626; }
 .combat-enemy-behemoth { --enemy-color: #581c87; }
+.combat-enemy-siege_warlord { --enemy-color: #991b1b; }
+
+.combat-enemy-boss {
+  z-index: 3;
+  filter:
+    drop-shadow(0 0 16px rgba(251, 113, 133, 0.55))
+    drop-shadow(0 10px 18px rgba(0, 0, 0, 0.42));
+}
+
+.combat-enemy-boss .combat-enemy-badge {
+  background: rgba(127, 29, 29, 0.92);
+  color: #fee2e2;
+  box-shadow: 0 0 12px rgba(251, 113, 133, 0.45);
+}
+
+.combat-enemy-boss .combat-enemy-hp {
+  height: 6px;
+  bottom: -7px;
+}
+
+.combat-enemy-boss .combat-enemy-hp span {
+  background: linear-gradient(90deg, #fb7185, #ef4444);
+}
+
+.wave-hud-boss .wave-hud-title {
+  color: #fda4af;
+}
 
 .combat-arrow {
   position: absolute;
@@ -2638,6 +2674,14 @@ button {
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--muted);
+}
+
+.wave-hud-paused {
+  color: #fde68a;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .wave-hud-breach {
